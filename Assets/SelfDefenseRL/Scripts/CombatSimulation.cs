@@ -84,6 +84,21 @@ namespace SelfDefenseRL
         public float TimePinnedToWall;     // Sekunden mit Rücken an der Wand, während festgehalten
         public float FirstReleaseTime = -1f;
 
+        /// <summary>Treffer für die Darstellung (Kopf fliegt zurück usw.). Wird von ArenaView abgeholt.</summary>
+        public struct HitEvent
+        {
+            public bool OnDefender;   // true = Verteidigerin wurde getroffen, false = Angreifer
+            public HitZone Zone;
+            public float Strength;    // ~0..1
+            public float DirX, DirZ;  // Richtung der Kraft (Welt, x/z)
+            public bool Knockdown;
+        }
+        public readonly System.Collections.Generic.List<HitEvent> Hits = new System.Collections.Generic.List<HitEvent>();
+
+        /// <summary>Schaden pro Körperzone (Kopf, Rumpf, Beine) für die Anzeige, 0..1.</summary>
+        public readonly float[] DefZoneDamage = new float[3];
+        public readonly float[] AttZoneDamage = new float[3];
+
         int resolvingTechnique;            // Technik, die gerade ausgewertet wird
         int lastEffectiveTechnique;
         float gripDirX, gripDirZ = 1f;     // Richtung Verteidigerin → Angreifer beim Greifen
@@ -143,6 +158,7 @@ namespace SelfDefenseRL
             Array.Clear(TechniqueWallTurns, 0, TechniqueWallTurns.Length);
             DecisiveTechnique = 0; DamageTakenTotal = 0f; TimesGrabbed = 0; Takedowns = 0;
             TimePinnedToWall = 0f; FirstReleaseTime = -1f;
+            Hits.Clear(); Array.Clear(DefZoneDamage, 0, 3); Array.Clear(AttZoneDamage, 0, 3);
             resolvingTechnique = 0; lastEffectiveTechnique = 0;
 
             DefHealth = 1f; DefStamina = 1f; DefGrounded = false;
@@ -369,6 +385,8 @@ namespace SelfDefenseRL
                     {
                         float dmg = t.Damage * power * eff * groundPenalty * R(0.7f, 1.2f);
                         AttDamage = Clamp01(AttDamage + dmg);
+                        AttZoneDamage[(int)t.Target] = Clamp01(AttZoneDamage[(int)t.Target] + dmg * 2f);
+                        AddHit(false, t.Target, dmg * 5f, AX - DX, AZ - DZ, false);
                         float stun = t.StunFactor * dmg * 6f;
                         AttStun = Math.Max(AttStun, stun);
                         if (stun > 0.5f) lastEffectiveTechnique = index;
@@ -378,7 +396,7 @@ namespace SelfDefenseRL
                     if (t.Balance > 0f)
                     {
                         AttBalance -= t.Balance * power * eff * R(0.7f, 1.2f);
-                        if (AttBalance <= 0f) KnockDownAttacker();
+                        if (AttBalance <= 0f) { KnockDownAttacker(); AddHit(false, HitZone.Body, 0.8f, AX - DX, AZ - DZ, true); }
                     }
                     if (!AttIncapacitated && AttDamage >= 0.9f)
                     {
@@ -499,7 +517,11 @@ namespace SelfDefenseRL
 
             // Würgen = kontinuierlicher Schaden
             if (Grip == GripType.Choke)
-                Hurt(S.ChokeDamagePerSecond * (float)Math.Sqrt(StrengthRatio) * GripStrength * dt);
+            {
+                float c = S.ChokeDamagePerSecond * (float)Math.Sqrt(StrengthRatio) * GripStrength * dt;
+                Hurt(c);
+                DefZoneDamage[0] = Clamp01(DefZoneDamage[0] + c * 1.5f); // Hals/Kopf
+            }
 
             // Griff → Angreifer klebt an der Verteidigerin
             if (Grip != GripType.None) FollowDefender(dt);
@@ -584,6 +606,7 @@ namespace SelfDefenseRL
             SetGrip(GripType.Mount, Math.Max(GripStrength, 0.7f));
             DefBusy = 0f; DefTechnique = 0;
             Hurt(0.05f);
+            AddHit(true, HitZone.Body, 0.7f, DX - AX, DZ - AZ, true);
             ev.PositionWorsened++;
         }
 
@@ -597,6 +620,9 @@ namespace SelfDefenseRL
             float dmg = S.AttackerStrikeDamage * damageMult * (float)Math.Sqrt(StrengthRatio)
                         * (1f - 0.5f * AttDamage) * (DefGuard > 0f ? 0.4f : 1f) * R(0.7f, 1.3f);
             Hurt(dmg);
+            var zone = DefGuard > 0f ? HitZone.Body : (R() < 0.65f ? HitZone.Head : HitZone.Body); // Deckung schützt den Kopf
+            DefZoneDamage[(int)zone] = Clamp01(DefZoneDamage[(int)zone] + dmg * 2.5f);
+            AddHit(true, zone, dmg * 6f, DX - AX, DZ - AZ, false);
         }
 
         void Hurt(float amount)
@@ -648,6 +674,15 @@ namespace SelfDefenseRL
         }
 
         // ================================================================== Hilfen
+        void AddHit(bool onDefender, HitZone zone, float strength, float dx, float dz, bool knockdown)
+        {
+            float len = (float)Math.Sqrt(dx * dx + dz * dz);
+            if (len < 1e-4f) { dx = 0f; dz = 1f; len = 1f; }
+            if (Hits.Count < 64)
+                Hits.Add(new HitEvent { OnDefender = onDefender, Zone = zone, Strength = Math.Min(1.2f, strength),
+                                        DirX = dx / len, DirZ = dz / len, Knockdown = knockdown });
+        }
+
         float DistanceToWall(float x, float z)
         {
             float h = S.ArenaHalfSize;

@@ -21,6 +21,9 @@ namespace SelfDefenseRL
         All = AllStanding | GroundMount | GroundFree
     }
 
+    /// <summary>Getroffene Körperzone (für Schadensanzeige und Treffer-Reaktion).</summary>
+    public enum HitZone { Head = 0, Body = 1, Legs = 2 }
+
     /// <summary>
     /// Abstrakte Technik. ALLE Zahlen sind Modellannahmen und sollten im Bericht
     /// begründet und per Sensitivitätsanalyse geprüft werden (siehe docs/MODELL.md).
@@ -53,6 +56,7 @@ namespace SelfDefenseRL
         public bool IsStandUp;        // Aufstehen aus Bodenlage
         public bool RemovesMount;     // kann die Mount-Position auflösen (Bridge & Roll)
         public bool TurnsOffWall;     // dreht die Position: danach steht der Angreifer an der Wand (Underhook)
+        public HitZone Target = HitZone.Body; // wo die Technik trifft
     }
 
     public static class TechniqueLibrary
@@ -97,35 +101,35 @@ namespace SelfDefenseRL
             // ---- Schläge ----
             t.Add(new Technique
             {
-                Name = "PalmStrike", Description = "Handballenstoss ins Gesicht",
+                Name = "PalmStrike", Target = HitZone.Head, Description = "Handballenstoss ins Gesicht",
                 Contexts = Context.StandingFree | Context.Wrist | Context.FrontPin | Context.Choke,
                 Duration = 0.35f, Accuracy = 0.7f, Damage = 0.12f, MassScaling = 0.8f, StunFactor = 0.5f,
                 Push = 0.2f, Exposure = 0.2f, StaminaCost = 0.04f
             });
             t.Add(new Technique
             {
-                Name = "JabCross", Description = "Gerade Schläge (Jab, Cross)",
+                Name = "JabCross", Target = HitZone.Head, Description = "Gerade Schläge (Jab, Cross)",
                 Contexts = Context.StandingFree | Context.FrontPin | Context.Choke,
                 Duration = 0.25f, Accuracy = 0.7f, Damage = 0.10f, MassScaling = 0.9f, StunFactor = 0.4f,
                 Exposure = 0.15f, StaminaCost = 0.04f
             });
             t.Add(new Technique
             {
-                Name = "ReversePunch", Description = "Karate-Fauststoss (Gyaku-Zuki) mit Hüfteinsatz",
+                Name = "ReversePunch", Target = HitZone.Body, Description = "Karate-Fauststoss (Gyaku-Zuki) mit Hüfteinsatz",
                 Contexts = Context.StandingFree | Context.Wrist | Context.FrontPin | Context.Choke,
                 Duration = 0.3f, Accuracy = 0.7f, Damage = 0.12f, MassScaling = 0.85f, StunFactor = 0.45f,
                 Exposure = 0.15f, StaminaCost = 0.04f
             });
             t.Add(new Technique
             {
-                Name = "HammerFist", Description = "Hammerfaust, auch von unten",
+                Name = "HammerFist", Target = HitZone.Head, Description = "Hammerfaust, auch von unten",
                 Contexts = Context.AllStanding | Context.GroundMount,
                 Duration = 0.3f, Accuracy = 0.7f, Damage = 0.08f, MassScaling = 0.7f, StunFactor = 0.3f,
                 Exposure = 0.15f, StaminaCost = 0.04f
             });
             t.Add(new Technique
             {
-                Name = "Elbow", Description = "Ellbogenschlag (auch nach hinten)",
+                Name = "Elbow", Target = HitZone.Head, Description = "Ellbogenschlag (auch nach hinten)",
                 Contexts = Context.Wrist | Context.FrontPin | Context.Choke | Context.BearHug,
                 Duration = 0.3f, Accuracy = 0.75f, Damage = 0.15f, MassScaling = 0.7f, StunFactor = 0.6f,
                 GripBreak = 0.05f, StrengthScaling = 0.5f, Exposure = 0.1f, StaminaCost = 0.05f
@@ -134,14 +138,14 @@ namespace SelfDefenseRL
             // ---- Ziele mit hoher Wirkung (wenig abhängig von der eigenen Masse) ----
             t.Add(new Technique
             {
-                Name = "KneeGroin", Description = "Kniestoss (Leiste/Körper)",
+                Name = "KneeGroin", Target = HitZone.Body, Description = "Kniestoss (Leiste/Körper)",
                 Contexts = Context.Wrist | Context.FrontPin | Context.Choke,
                 Duration = 0.4f, Accuracy = 0.55f, Damage = 0.30f, MassScaling = 0.15f, StunFactor = 1.5f,
                 GripBreak = 0.10f, StrengthScaling = 0.3f, Exposure = 0.15f, StaminaCost = 0.05f
             });
             t.Add(new Technique
             {
-                Name = "FaceStrike", Description = "Angriff auf Augen/Nase",
+                Name = "FaceStrike", Target = HitZone.Head, Description = "Angriff auf Augen/Nase",
                 Contexts = Context.StandingFree | Context.Wrist | Context.FrontPin | Context.Choke | Context.GroundMount,
                 Duration = 0.3f, Accuracy = 0.45f, Damage = 0.25f, MassScaling = 0f, StunFactor = 1.2f,
                 GripBreak = 0.15f, StrengthScaling = 0.2f, Exposure = 0.25f, StaminaCost = 0.04f
@@ -150,7 +154,7 @@ namespace SelfDefenseRL
             // ---- Tritte ----
             t.Add(new Technique
             {
-                Name = "KickKnee", Description = "Tritt gegen Knie/Schienbein, Fussstampfer",
+                Name = "KickKnee", Target = HitZone.Legs, Description = "Tritt gegen Knie/Schienbein, Fussstampfer",
                 Contexts = Context.StandingFree | Context.Wrist | Context.FrontPin | Context.BearHug | Context.Choke,
                 MinRange = 0.4f, MaxRange = 1.4f,
                 Duration = 0.4f, Accuracy = 0.6f, Damage = 0.15f, MassScaling = 0.4f, StunFactor = 0.6f,
@@ -158,21 +162,21 @@ namespace SelfDefenseRL
             });
             t.Add(new Technique
             {
-                Name = "FrontKick", Description = "Frontaltritt / Teep (stösst weg)",
+                Name = "FrontKick", Target = HitZone.Body, Description = "Frontaltritt / Teep (stösst weg)",
                 Contexts = Context.StandingFree | Context.Wrist, MinRange = 0.7f, MaxRange = 1.5f,
                 Duration = 0.4f, Accuracy = 0.65f, Damage = 0.10f, MassScaling = 0.6f, StunFactor = 0.4f,
                 Push = 0.9f, Exposure = 0.25f, StaminaCost = 0.06f
             });
             t.Add(new Technique
             {
-                Name = "SideKick", Description = "Seitwärtstritt (Yop Chagi / Yoko-Geri)",
+                Name = "SideKick", Target = HitZone.Body, Description = "Seitwärtstritt (Yop Chagi / Yoko-Geri)",
                 Contexts = Context.StandingFree, MinRange = 0.9f, MaxRange = 1.8f,
                 Duration = 0.5f, Accuracy = 0.55f, Damage = 0.14f, MassScaling = 0.6f, StunFactor = 0.5f,
                 Push = 1.1f, Balance = 0.2f, Exposure = 0.35f, StaminaCost = 0.08f
             });
             t.Add(new Technique
             {
-                Name = "RoundKickThigh", Description = "Halbkreistritt auf den Oberschenkel (Low Kick)",
+                Name = "RoundKickThigh", Target = HitZone.Legs, Description = "Halbkreistritt auf den Oberschenkel (Low Kick)",
                 Contexts = Context.StandingFree, MinRange = 0.9f, MaxRange = 1.8f,
                 Duration = 0.5f, Accuracy = 0.6f, Damage = 0.15f, MassScaling = 0.7f, StunFactor = 0.4f,
                 Balance = 0.15f, Exposure = 0.35f, StaminaCost = 0.07f
@@ -187,7 +191,7 @@ namespace SelfDefenseRL
             });
             t.Add(new Technique
             {
-                Name = "WristLock", Description = "Handgelenkhebel mit Wurf (Kote-Gaeshi)",
+                Name = "WristLock", Target = HitZone.Body, Description = "Handgelenkhebel mit Wurf (Kote-Gaeshi)",
                 Contexts = Context.Wrist | Context.FrontPin | Context.Choke,
                 Duration = 0.5f, Accuracy = 0.6f, GripBreak = 0.5f, StrengthScaling = 0.2f,
                 Balance = 0.35f, MassScaling = 0.3f, Exposure = 0.15f, StaminaCost = 0.06f
@@ -231,7 +235,7 @@ namespace SelfDefenseRL
             // ---- Würfe ----
             t.Add(new Technique
             {
-                Name = "HipThrow", Description = "Hüftwurf (O-Goshi)",
+                Name = "HipThrow", Target = HitZone.Body, Description = "Hüftwurf (O-Goshi)",
                 Contexts = Context.FrontPin | Context.Wrist | Context.StandingFree, MaxRange = 0.9f,
                 Duration = 0.7f, Accuracy = 0.5f, Balance = 1.2f, MassScaling = 0.5f,
                 Exposure = 0.4f, StaminaCost = 0.12f
@@ -240,7 +244,7 @@ namespace SelfDefenseRL
             // ---- Boden ----
             t.Add(new Technique
             {
-                Name = "BridgeRoll", Description = "Brücke und Rolle aus dem Mount (Upa)",
+                Name = "BridgeRoll", Target = HitZone.Body, Description = "Brücke und Rolle aus dem Mount (Upa)",
                 Contexts = Context.GroundMount,
                 Duration = 0.8f, Accuracy = 0.6f, Balance = 1.3f, MassScaling = 0.45f,
                 Exposure = 0.2f, StaminaCost = 0.12f, RemovesMount = true

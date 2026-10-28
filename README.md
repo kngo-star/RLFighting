@@ -26,7 +26,7 @@ Assets/SelfDefenseRL/
     DefenderAgent.cs      ML-Agents-Agent: Observations, Action Masking, Rewards, Statistik
     ArenaView.cs          Darstellung (Figuren, Posen, Farben, Griff-Linie, Text)
     StatsHUD.cs           Live-Statistik im Game-Fenster (Taste H)
-    HumanoidFigure.cs     menschliche Figur aus Grundkörpern mit Gelenken und Posen
+    HumanoidFigure.cs     menschliche Figur: Gelenke, Posen, Treffer-Physik, Schritte, Schadensfarben
     EpisodeCsvLogger.cs   CSV-Log jeder Episode für die Auswertung
   Editor/
     SceneBuilder.cs       Menü "SelfDefenseRL" → baut die Szenen automatisch
@@ -114,6 +114,35 @@ tensorboard --logdir results
 
 Unterbrochenes Training fortsetzen: gleicher Befehl mit `--resume`. Schneller trainieren: Trainings-Szene als
 Build exportieren und mit `--env=<pfad> --num-envs=4 --no-graphics` starten.
+
+## Wie lernt der Agent? (Daten, Training, wird er immer besser?)
+
+- **Man braucht keine Daten.** Reinforcement Learning erzeugt seine Daten selbst: Die Verteidigerin spielt Tausende
+  Episoden, probiert Bewegungen und Techniken aus und bekommt Belohnungen (Flucht +1, Griff gelöst +0.2, Treffer −…).
+  `mlagents-learn` sammelt diese Erfahrungen und verbessert damit das neuronale Netz (PPO).
+- **Ablauf:** Training starten → in Unity Play → laufen lassen (z. B. 6 Mio. Schritte, je nach Rechner 1–4 h mit 16 Arenen)
+  → in TensorBoard die Kurven `Environment/Cumulative Reward` und `SelfDefense/Success` beobachten.
+- **Wird sie immer besser?** Ja, aber nur bis zu einer Grenze. Am Anfang wählt sie zufällig, dann steigt die Erfolgsrate
+  und flacht irgendwann ab (Plateau). Ab dort hat sie die beste Strategie gefunden, *die ihr Körper und ihr Stil erlauben*:
+  Sie wird klüger (Timing, Abstand, Technikwahl), aber nicht stärker. Gegen einen sehr viel Grösseren bleibt die
+  Erfolgsrate deshalb tiefer, genau das wollen wir messen.
+- Der Angreifer ist ein festes Skript und lernt nicht mit. Erweiterung: Angreifer ebenfalls mit RL trainieren (Self-Play),
+  dann verbessern sich beide gegenseitig.
+- Ergebnis jedes Trainings ist eine `.onnx`-Datei in `results/<run-id>/`. Die zieht man in Unity auf den Defender
+  (*Behavior Parameters → Model*) und sieht die gelernte Strategie.
+
+## Darstellung und Physik
+
+Die Figuren sind prozedural animiert (keine Motion-Capture-Animationen wie in EA UFC):
+- **Treffer-Physik:** Jeder Treffer gibt den Gelenken einen Impuls, eine gedämpfte Feder zieht sie zurück. Ein Schlag
+  ins Gesicht lässt den Kopf zurückschnappen, ein Kniestoss klappt den Rumpf ein, ein Low Kick knickt das Bein ein.
+  Einstellbar am Figur-Objekt (*Treffer-Physik*: Steifigkeit, Dämpfung, Stärke).
+- **Schadensanzeige:** Kopf, Rumpf und Beine verfärben sich mit zunehmendem Schaden dunkelrot, beim Treffer blitzt die
+  Zone kurz gelb auf. Über der Verteidigerin stehen ihre HP und die des Angreifers.
+- **Beinarbeit:** Beim Bewegen machen die Figuren Schritte. Wohin und wie weit sie gehen (Abstand halten, ausweichen,
+  in Tritt-Distanz gehen), entscheidet der RL-Agent.
+- Die Kampflogik bleibt das Modell in `CombatSimulation.cs`. Volle Ragdoll-Physik (ArticulationBody), bei der der Agent
+  jedes Gelenk selbst steuert, wäre ein eigenes, viel grösseres Projekt.
 
 ## Auswertung: Wie findet man heraus, welche Technik am besten ist?
 

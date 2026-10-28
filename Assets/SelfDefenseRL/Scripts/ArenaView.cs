@@ -24,27 +24,12 @@ namespace SelfDefenseRL
         static readonly Color StunColor = new Color(1f, 0.8f, 0.2f);
         static readonly Color DownColor = new Color(0.45f, 0.45f, 0.45f);
         static readonly Color DefenderColor = new Color(0.2f, 0.45f, 0.95f);
-        static readonly Color DefenderHurtColor = new Color(0.55f, 0.1f, 0.55f);
         static readonly Color SuccessColor = new Color(0.2f, 0.85f, 0.3f);
 
-        MaterialPropertyBlock block;
-        readonly List<Renderer> attackerBody = new List<Renderer>();
-        readonly List<Renderer> defenderBody = new List<Renderer>();
         float defenderYaw, attackerYaw;
 
         void Awake()
         {
-            block = new MaterialPropertyBlock();
-            CollectBody(attacker, attackerBody);
-            CollectBody(defender, defenderBody);
-        }
-
-        static void CollectBody(HumanoidFigure fig, List<Renderer> list)
-        {
-            list.Clear();
-            if (fig == null) return;
-            foreach (var r in fig.GetComponentsInChildren<Renderer>())
-                if (fig.bodyMaterial == null || r.sharedMaterial == fig.bodyMaterial) list.Add(r);
         }
 
         void LateUpdate()
@@ -86,8 +71,20 @@ namespace SelfDefenseRL
 
             // --- Farben
             bool down = s.AttDown > 0f;
-            SetColor(attackerBody, down ? DownColor : (s.AttStun > 0f ? StunColor : AttackerColor));
-            SetColor(defenderBody, s.Done && s.Success ? SuccessColor : Color.Lerp(DefenderHurtColor, DefenderColor, s.DefHealth));
+            attacker.SetBaseColor(down ? DownColor : (s.AttStun > 0f ? StunColor : AttackerColor));
+            defender.SetBaseColor(s.Done && s.Success ? SuccessColor : DefenderColor);
+            // Schaden pro Körperzone → Verfärbung (dunkelrot = viel Schaden)
+            defender.SetDamage(s.DefZoneDamage[0], s.DefZoneDamage[1], s.DefZoneDamage[2]);
+            attacker.SetDamage(s.AttZoneDamage[0], s.AttZoneDamage[1], s.AttZoneDamage[2]);
+
+            // --- Treffer-Reaktionen (Kopf fliegt zurück, Rumpf klappt ein, Knie geben nach)
+            for (int i = 0; i < s.Hits.Count; i++)
+            {
+                var h = s.Hits[i];
+                var dir = transform.TransformDirection(new Vector3(h.DirX, 0f, h.DirZ));
+                (h.OnDefender ? defender : attacker).ApplyHit(h.Zone, h.Strength, dir);
+            }
+            s.Hits.Clear();
 
             // --- Griff-Linie
             if (gripLine)
@@ -103,7 +100,7 @@ namespace SelfDefenseRL
             // --- Text
             if (label)
             {
-                label.text = agent.StatusText();
+                label.text = agent.StatusText() + $"\nAngreifer {Mathf.Max(0f, 1f - s.AttDamage):0.00}";
                 label.transform.position = defender.transform.position + Vector3.up * 2.1f;
                 var cam = Camera.main;
                 if (cam) label.transform.rotation = Quaternion.LookRotation(label.transform.position - cam.transform.position);
@@ -174,18 +171,6 @@ namespace SelfDefenseRL
                 case "HipThrow": return Pose.Throw;
                 case "Guard": return Pose.Guard;
                 default: return Pose.Idle;
-            }
-        }
-
-        void SetColor(List<Renderer> renderers, Color c)
-        {
-            foreach (var r in renderers)
-            {
-                if (r == null) continue;
-                r.GetPropertyBlock(block);
-                block.SetColor("_BaseColor", c); // URP
-                block.SetColor("_Color", c);     // Built-in
-                r.SetPropertyBlock(block);
             }
         }
     }
