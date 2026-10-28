@@ -86,24 +86,46 @@ Benommenheit und Schaden machen ihn langsamer und lockern den Griff.
 Die Zwischenbelohnungen (Griff gelöst, Knockdown) sind Reward Shaping. Für den Bericht lohnt sich
 ein Vergleich: Training **mit** und **ohne** Shaping.
 
-## 6. Plausibilitätscheck (ohne RL)
+## 6. Wände und Körpergrösse
+
+- Wände sind fest. Jede Figur hat einen Platzbedarf: Verteidigerin 0.28 m, Angreifer `0.3 × massRatio^0.6` m.
+  Liegende Figuren brauchen 1 m Abstand zur Wand (Kopf und Füsse bleiben in der Arena).
+- Im **Clinch** und beim **Würgen** drückt der Angreifer die Verteidigerin mit `0.6 m/s × √strengthRatio × Griffstärke`
+  rückwärts, bis sie mit dem Rücken an der Wand steht. Gemessen wird `time_pinned_wall` (Sekunden an der Wand fixiert).
+- Der Angreifer bleibt auf der Seite, von der er gegriffen hat. Passt er nicht mehr zwischen Verteidigerin und Wand,
+  werden beide verschoben.
+- Darstellung: Verteidigerin 92 % der Standardgrösse, Angreifer Höhe `massRatio^0.25`, Breite `massRatio^0.6`.
+
+## 7. Kennzahlen für die Auswertung
+
+| Kennzahl | Bedeutung |
+|---|---|
+| Erfolgsrate | Anteil Episoden mit gelungener Flucht (Hauptkennzahl) |
+| löst-Griff-Rate | Griffe gelöst / Einsätze einer Technik → Wirksamkeit |
+| wirft-um-Rate | Angreifer zu Boden / Einsätze |
+| entscheidende Technik | letzte wirksame Aktion (Griff gelöst, umgeworfen, ≥ 0.5 s benommen) vor der Flucht → Wichtigkeit |
+| Erfolg mit / ohne | Erfolgsrate der Episoden, in denen die Technik (nicht) benutzt wurde (Korrelation, keine Ursache!) |
+| time_pinned_wall, times_grabbed, takedowns, damage_taken | wie die Episode verlaufen ist |
+
+## 8. Plausibilitätscheck (ohne RL)
 
 `tools/SimCheck.cs`, Politik *flee* (zufällige erlaubte Technik solange festgehalten, sonst sofort weglaufen),
 2000 Episoden pro Zelle, `massRatio = 1.5`:
 
 | Szenario | Untrained | Boxing | MuayThai | BJJ | Judo | KravMaga | WingTsun | Mixed |
 |---|---|---|---|---|---|---|---|---|
-| WristGrab | 34 % | 36 % | 86 % | 59 % | 66 % | 93 % | 92 % | 85 % |
-| PinnedToWall | 1 % | 2 % | 58 % | 32 % | 44 % | 83 % | 83 % | 62 % |
-| BearHugBehind | 6 % | 0 % | 64 % | 60 % | 78 % | 82 % | 88 % | 68 % |
-| ChokeFront | 10 % | 6 % | 75 % | 37 % | 50 % | 86 % | 89 % | 76 % |
-| GroundMount | 0 % | 0 % | 31 % | 50 % | 72 % | 71 % | 76 % | 53 % |
-| CorneredStrikes | 6 % | 6 % | 53 % | 21 % | 27 % | 75 % | 76 % | 56 % |
+| WristGrab | 28 % | 28 % | 85 % | 48 % | 53 % | 93 % | 93 % | 80 % |
+| PinnedToWall | 1 % | 3 % | 63 % | 15 % | 16 % | 86 % | 87 % | 61 % |
+| BearHugBehind | 6 % | 0 % | 65 % | 58 % | 76 % | 84 % | 90 % | 67 % |
+| ChokeFront | 10 % | 6 % | 72 % | 24 % | 31 % | 88 % | 92 % | 73 % |
+| GroundMount | 0 % | 0 % | 31 % | 47 % | 73 % | 75 % | 81 % | 54 % |
+| CorneredStrikes | 7 % | 10 % | 64 % | 13 % | 13 % | 82 % | 84 % | 63 % |
 
 Beobachtungen:
-- Der Grössenunterschied wirkt stark (bei 1.0 sind alle Werte deutlich höher, bei 1.8 tiefer).
-- Stile mit Zielen hoher Wirkung (Krav, WingTsun) liegen vorne – **das folgt direkt aus der Annahme
-  `MassScaling ≈ 0` für KneeGroin/FaceStrike**. Genau das muss im Bericht kritisch diskutiert werden.
-- `Mixed` liegt bei zufälliger Wahl unter Krav, weil schlechte Techniken die guten verwässern.
-  Ein RL-Agent sollte das lernen und mindestens so gut werden wie der beste Einzelstil.
+- Der Grössenunterschied wirkt stark, und seit die Wand fest ist, verlieren Grappling-Stile (BJJ, Judo) im Stand deutlich.
+- Krav Maga und Wing Tsun liegen vorne – **das folgt direkt aus der Annahme `MassScaling ≈ 0` für KneeGroin/FaceStrike**.
+  Genau das muss im Bericht kritisch diskutiert und per Sensitivitätsanalyse geprüft werden.
+- `Mixed` liegt bei zufälliger Wahl unter Krav, weil schlechte Techniken die guten verwässern. Ein RL-Agent sollte
+  mindestens so gut werden wie der beste Einzelstil.
 - Der RL-Agent muss deutlich über dieser Baseline liegen, sonst lernt er nichts Sinnvolles.
+- Baseline-CSV für die Auswertung: `mono simcheck.exe 1.5 flee baseline.csv` → `python analysis/analyze_episodes.py baseline.csv`

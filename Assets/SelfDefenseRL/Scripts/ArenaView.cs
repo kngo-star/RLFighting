@@ -17,6 +17,8 @@ namespace SelfDefenseRL
         public float smoothing = 12f;
         [Tooltip("So lange (Sekunden Simulationszeit) bleibt eine Schlag-/Technik-Pose sichtbar")]
         public float poseHold = 0.3f;
+        [Tooltip("Grösse der Verteidigerin relativ zur Standardfigur (1.75 m)")]
+        public float defenderScale = 0.92f;
 
         static readonly Color AttackerColor = new Color(0.8f, 0.18f, 0.18f);
         static readonly Color StunColor = new Color(1f, 0.8f, 0.2f);
@@ -72,9 +74,10 @@ namespace SelfDefenseRL
             defender.transform.localRotation = Quaternion.Slerp(defender.transform.localRotation, Quaternion.Euler(0f, defenderYaw, 0f), k);
             defender.SetPose(DefenderPose(s));
 
-            // --- Angreifer: grösser und breiter
+            // --- Grössen: Verteidigerin kleiner, Angreifer grösser und deutlich breiter
+            defender.transform.localScale = new Vector3(defenderScale, defenderScale, defenderScale);
             float height = Mathf.Pow(s.MassRatio, 0.25f);
-            float width = Mathf.Pow(s.MassRatio, 0.375f);
+            float width = Mathf.Pow(s.MassRatio, 0.6f);
             attacker.transform.localScale = new Vector3(width, height, width);
             if (s.Grip == GripType.Mount) aPos = dPos - dForward * 0.25f; // kniet über dem Oberkörper
             attacker.transform.localPosition = Vector3.Lerp(attacker.transform.localPosition, aPos, k);

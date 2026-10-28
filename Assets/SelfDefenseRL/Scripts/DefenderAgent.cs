@@ -36,6 +36,14 @@ namespace SelfDefenseRL
 
         [Header("Auswertung")]
         public bool logEpisodesToCsv = false;
+        [Tooltip("Geht systematisch alle Kombinationen Szenario × Stil × Grösse durch (für faire Auswertung)")]
+        public bool evaluationSweep = false;
+
+        /// <summary>Wird nach jeder Episode aufgerufen (für Live-Statistik im StatsHUD).</summary>
+        public static event System.Action<CombatSimulation> EpisodeFinished;
+
+        public static readonly float[] SweepMassRatios = { 1.0f, 1.2f, 1.4f, 1.6f, 1.8f };
+        static int sweepCounter;
 
         [Header("Rewards")]
         public float rewardEscape = 1.0f;
@@ -59,6 +67,18 @@ namespace SelfDefenseRL
         public override void OnEpisodeBegin()
         {
             var p = Academy.Instance.EnvironmentParameters;
+
+            if (evaluationSweep)
+            {
+                int cell = sweepCounter++;
+                int sc = cell % EnumCounts.Scenarios;
+                int stIdx = fixedStyle >= 0 ? fixedStyle : (cell / EnumCounts.Scenarios) % EnumCounts.Styles;
+                int stCount = fixedStyle >= 0 ? 1 : EnumCounts.Styles;
+                float m = SweepMassRatios[(cell / (EnumCounts.Scenarios * stCount)) % SweepMassRatios.Length];
+                Sim.Reset((Scenario)sc, (Style)stIdx, m, DefaultStrengthRatio(m));
+                Sim.ConsumeEvents();
+                return;
+            }
 
             int scenario = fixedScenario >= 0 ? fixedScenario : (int)p.GetWithDefault("scenario", -1f);
             if (scenario < 0 || scenario >= EnumCounts.Scenarios) scenario = Random.Range(0, EnumCounts.Scenarios);
@@ -206,7 +226,11 @@ namespace SelfDefenseRL
             for (int i = 1; i < TechniqueLibrary.Count; i++)
                 stats.Add($"SelfDefense/Uses_{TechniqueLibrary.All[i].Name}", Sim.TechniqueUses[i]);
 
+            if (Sim.Success) stats.Add($"SelfDefense/Decisive_{TechniqueLibrary.All[Sim.DecisiveTechnique].Name}", 1f, StatAggregationMethod.Sum);
+            stats.Add("SelfDefense/TimePinnedToWall", Sim.TimePinnedToWall);
+
             if (logEpisodesToCsv) EpisodeCsvLogger.Log(Sim);
+            EpisodeFinished?.Invoke(Sim);
         }
 
         /// <summary>Kurzbeschreibung für die Anzeige über der Figur.</summary>

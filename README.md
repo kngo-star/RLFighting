@@ -25,6 +25,7 @@ Assets/SelfDefenseRL/
     CombatSimulation.cs   Kampfmodell in reinem C# (Angreifer-KI, Griffe, Schaden, Flucht)
     DefenderAgent.cs      ML-Agents-Agent: Observations, Action Masking, Rewards, Statistik
     ArenaView.cs          Darstellung (Figuren, Posen, Farben, Griff-Linie, Text)
+    StatsHUD.cs           Live-Statistik im Game-Fenster (Taste H)
     HumanoidFigure.cs     menschliche Figur aus Grundkörpern mit Gelenken und Posen
     EpisodeCsvLogger.cs   CSV-Log jeder Episode für die Auswertung
   Editor/
@@ -113,18 +114,35 @@ Unterbrochenes Training fortsetzen: gleicher Befehl mit `--resume`.
 In TensorBoard gibt es eigene Kurven unter **SelfDefense/** (Erfolgsrate pro Szenario und Stil,
 Zeit bis zur Flucht, Technik-Nutzung).
 
-## Auswertung
+## Auswertung: Wie findet man heraus, welche Technik am besten ist?
 
+Es gibt drei Stellen, an denen man Ergebnisse ablesen kann:
+
+**1. Live in Unity (StatsHUD):** In jeder Szene oben links im Game-Fenster. Taste **H** blendet ein/aus.
+- *Übersicht*: Erfolgsrate pro Stil, pro Szenario und pro Grössenverhältnis
+- *Stil × Szenario*: Tabelle, welcher Stil in welcher Lage funktioniert
+- *Techniken*: wie oft benutzt, Trefferquote, wie oft sie einen Griff löst, wie oft sie umwirft, und wie oft sie die
+  **entscheidende** Technik vor der Flucht war. *Speichern* schreibt alles als Textdatei.
+
+**2. Während des Trainings (TensorBoard):** `tensorboard --logdir results` → Bereich **SelfDefense/**
+(Erfolg pro Szenario und Stil, Zeit bis zur Flucht, Zeit an der Wand, Technik-Nutzung, entscheidende Techniken).
+Steigt die Erfolgskurve, lernt der Agent.
+
+**3. Systematische Auswertung (für den Bericht):**
 1. Trainiertes Modell `results/<run-id>/SelfDefense.onnx` nach `Assets/` ziehen.
-2. **SelfDefenseRL → Auswertungs-Szene erstellen** (16 Arenen mit CSV-Log).
-3. Bei allen Defender-Objekten (Mehrfachauswahl): *Behavior Parameters → Model* = das `.onnx`,
-   *Behavior Type = Inference Only*. Optional `Fixed Style` setzen.
-4. Play, ein paar Minuten laufen lassen. Der Pfad der CSV steht in der Unity-Konsole.
+2. **SelfDefenseRL → Auswertungs-Szene erstellen** (16 Arenen, geht automatisch alle Kombinationen
+   Szenario × Stil × Grösse 1.0–1.8 durch und schreibt jede Episode in eine CSV).
+3. Alle Defender auswählen: *Behavior Parameters → Model* = das `.onnx`, *Behavior Type = Inference Only*.
+4. Play, ca. 10 Minuten laufen lassen. Der Pfad der CSV steht in der Unity-Konsole.
 5. ```bash
    pip install pandas matplotlib
    python analysis/analyze_episodes.py <pfad>/selfdefense_episodes.csv
    ```
-   → Heatmap *Szenario × Stil*, Erfolg über das Grössenverhältnis, Top-Techniken pro Szenario.
+   → `analysis/output/`: Heatmaps (Stil × Szenario, entscheidende Techniken, Wirksamkeit pro Technik),
+   Kurve über das Grössenverhältnis, `technik_tabelle.csv` und ein automatischer **`bericht.md`**.
+
+Eine Technik ist „am besten“, wenn sie oft **entscheidend** ist *und* eine hohe **löst-Griff-Rate** hat.
+Immer mit der Baseline (ohne RL) vergleichen und die Modellannahmen in `docs/MODELL.md` mitdiskutieren.
 
 ## Modell ohne Unity testen
 
@@ -132,6 +150,7 @@ Zeit bis zur Flucht, Technik-Nutzung).
 mcs -out:simcheck.exe tools/SimCheck.cs Assets/SelfDefenseRL/Scripts/Enums.cs \
     Assets/SelfDefenseRL/Scripts/TechniqueLibrary.cs Assets/SelfDefenseRL/Scripts/CombatSimulation.cs
 mono simcheck.exe 1.5 flee
+mono simcheck.exe 1.5 flee baseline.csv   # Baseline-CSV für analysis/analyze_episodes.py
 ```
 
 Zeigt die Erfolgsrate einfacher Baseline-Politiken. Nützlich nach jeder Änderung an den

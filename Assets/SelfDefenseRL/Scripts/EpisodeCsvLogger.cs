@@ -36,9 +36,11 @@ namespace SelfDefenseRL
                 var sb = new StringBuilder();
                 if (newFile)
                 {
-                    sb.Append("scenario,style,mass_ratio,strength_ratio,success,end_reason,time,health_left,attacker_damage");
+                    sb.Append("scenario,style,mass_ratio,strength_ratio,success,end_reason,time,health_left,attacker_damage,damage_taken,times_grabbed,takedowns,time_pinned_wall,first_release_time,decisive_technique");
                     for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(",uses_").Append(TechniqueLibrary.All[i].Name);
                     for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(",hits_").Append(TechniqueLibrary.All[i].Name);
+                    for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(",releases_").Append(TechniqueLibrary.All[i].Name);
+                    for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(",knockdowns_").Append(TechniqueLibrary.All[i].Name);
                     sb.Append('\n');
                 }
                 sb.Append(sim.Scenario).Append(',')
@@ -49,9 +51,17 @@ namespace SelfDefenseRL
                   .Append(sim.EndReason.Replace(',', ' ')).Append(',')
                   .Append(sim.Time.ToString("0.##", inv)).Append(',')
                   .Append(Mathf.Max(0f, sim.DefHealth).ToString("0.###", inv)).Append(',')
-                  .Append(sim.AttDamage.ToString("0.###", inv));
+                  .Append(sim.AttDamage.ToString("0.###", inv)).Append(',')
+                  .Append(sim.DamageTakenTotal.ToString("0.###", inv)).Append(',')
+                  .Append(sim.TimesGrabbed).Append(',')
+                  .Append(sim.Takedowns).Append(',')
+                  .Append(sim.TimePinnedToWall.ToString("0.##", inv)).Append(',')
+                  .Append(sim.FirstReleaseTime.ToString("0.##", inv)).Append(',')
+                  .Append(sim.Success ? TechniqueLibrary.All[sim.DecisiveTechnique].Name : "");
                 for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(sim.TechniqueUses[i]);
                 for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(sim.TechniqueHits[i]);
+                for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(sim.TechniqueReleases[i]);
+                for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(sim.TechniqueKnockdowns[i]);
                 sb.Append('\n');
                 File.AppendAllText(FilePath, sb.ToString());
             }

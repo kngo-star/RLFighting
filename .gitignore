@@ -44,3 +44,4 @@ __pycache__/
 # Trainierte Modelle bewusst ausgewählt einchecken (models/), Rohdaten nicht
 *.csv
 !analysis/example_*.csv
+analysis/output/

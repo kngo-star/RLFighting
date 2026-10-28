@@ -24,7 +24,7 @@ namespace SelfDefenseRL.EditorTools
         [MenuItem("SelfDefenseRL/Demo-Szene erstellen (1 Arena)")]
         public static void BuildDemo() => Build("Demo", 1, false);
 
-        [MenuItem("SelfDefenseRL/Auswertungs-Szene erstellen (16 Arenen, CSV-Log)")]
+        [MenuItem("SelfDefenseRL/Auswertungs-Szene erstellen (16 Arenen, CSV-Log, alle Kombinationen)")]
         public static void BuildEvaluation() => Build("Evaluation", 16, true);
 
         static void Build(string name, int arenas, bool csvLog)
@@ -45,6 +45,9 @@ namespace SelfDefenseRL.EditorTools
                 var pos = new Vector3((i % cols) * ArenaSpacing, 0f, (i / cols) * ArenaSpacing);
                 CreateArena(i, pos, lineMat, floorMat, wallMat, defMat, attMat, skinMat, csvLog);
             }
+
+            // Live-Statistik im Game-Fenster
+            new GameObject("StatsHUD").AddComponent<StatsHUD>();
 
             // Kamera
             var cam = Camera.main;
@@ -99,6 +102,7 @@ namespace SelfDefenseRL.EditorTools
             var agent = defender.AddComponent<DefenderAgent>();
             agent.MaxStep = 0; // Episodenende regelt die Simulation (MaxEpisodeTime)
             agent.logEpisodesToCsv = csvLog;
+            agent.evaluationSweep = csvLog; // Auswertung: alle Kombinationen systematisch durchgehen
             agent.seed = 0;
 
             var bp = defender.GetComponent<BehaviorParameters>();

@@ -25,6 +25,7 @@ namespace SelfDefenseRL
             public float AttackerBaseHitChance = 0.55f;
             public float ChokeDamagePerSecond = 0.035f;
             public float TakedownChance = 0.12f;
+            public float WallDriveSpeed = 0.6f; // m/s, mit der der Angreifer im Clinch zur Wand drückt
         }
 
         public Settings S = new Settings();
@@ -67,6 +68,25 @@ namespace SelfDefenseRL
         public string EndReason { get; private set; }
         public int[] TechniqueUses = new int[TechniqueLibrary.Count];
         public int[] TechniqueHits = new int[TechniqueLibrary.Count];
+        public int[] TechniqueReleases = new int[TechniqueLibrary.Count];   // wie oft diese Technik einen Griff gelöst hat
+        public int[] TechniqueKnockdowns = new int[TechniqueLibrary.Count]; // wie oft sie den Angreifer zu Boden gebracht hat
+
+        // Auswertung pro Episode
+        public int DecisiveTechnique;      // letzte wirksame Technik vor der Flucht (0 = nur Bewegung)
+        public float DamageTakenTotal;
+        public int TimesGrabbed;
+        public int Takedowns;
+        public float TimePinnedToWall;     // Sekunden mit Rücken an der Wand, während festgehalten
+        public float FirstReleaseTime = -1f;
+
+        int resolvingTechnique;            // Technik, die gerade ausgewertet wird
+        int lastEffectiveTechnique;
+        float gripDirX, gripDirZ = 1f;     // Richtung Verteidigerin → Angreifer beim Greifen
+
+        // Körpermasse → Platzbedarf (Meter)
+        public float DefRadius => 0.28f;
+        public float AttRadius => 0.3f * (float)Math.Pow(MassRatio, 0.6);
+        const float LyingMargin = 1.0f;
 
         /// <summary>Ereignisse seit dem letzten Abholen (für Rewards).</summary>
         public struct Events
@@ -112,6 +132,11 @@ namespace SelfDefenseRL
             ev = new Events();
             Array.Clear(TechniqueUses, 0, TechniqueUses.Length);
             Array.Clear(TechniqueHits, 0, TechniqueHits.Length);
+            Array.Clear(TechniqueReleases, 0, TechniqueReleases.Length);
+            Array.Clear(TechniqueKnockdowns, 0, TechniqueKnockdowns.Length);
+            DecisiveTechnique = 0; DamageTakenTotal = 0f; TimesGrabbed = 0; Takedowns = 0;
+            TimePinnedToWall = 0f; FirstReleaseTime = -1f;
+            resolvingTechnique = 0; lastEffectiveTechnique = 0;
 
             DefHealth = 1f; DefStamina = 1f; DefGrounded = false;
             DefBusy = 0f; DefTechnique = 0; DefGuard = 0f;
@@ -157,6 +182,13 @@ namespace SelfDefenseRL
 
         void SetGrip(GripType g, float strength)
         {
+            if (Grip == GripType.None && g != GripType.None)
+            {
+                float vx = AX - DX, vz = AZ - DZ;
+                float len = (float)Math.Sqrt(vx * vx + vz * vz);
+                if (len > 1e-3f) { gripDirX = vx / len; gripDirZ = vz / len; }
+                else { gripDirX = 0f; gripDirZ = 1f; }
+            }
             Grip = g;
             GripStrength = g == GripType.None ? 0f : Clamp01(strength);
         }
@@ -273,6 +305,7 @@ namespace SelfDefenseRL
 
         void End(bool success, string reason)
         {
+            if (success) DecisiveTechnique = lastEffectiveTechnique;
             Done = true;
             Success = success;
             EndReason = reason;
@@ -296,7 +329,7 @@ namespace SelfDefenseRL
             float speed = S.DefenderSpeed * (0.7f + 0.3f * DefStamina) * (0.6f + 0.4f * DefHealth);
             DX += mx * speed * dt;
             DZ += mz * speed * dt;
-            ClampToArena(ref DX, ref DZ, 0.3f);
+            ClampToArena(ref DX, ref DZ, DefRadius);
         }
 
         // ================================================================== Technik auflösen
@@ -312,6 +345,7 @@ namespace SelfDefenseRL
 
             if (t.IsStandUp) { DefGrounded = false; return; }
             if (t.IsGuard) return;
+            resolvingTechnique = index;
 
             bool isAttack = t.Damage > 0f || t.Balance > 0f;
             bool hit = true;
@@ -330,6 +364,7 @@ namespace SelfDefenseRL
                         AttDamage = Clamp01(AttDamage + dmg);
                         float stun = t.StunFactor * dmg * 6f;
                         AttStun = Math.Max(AttStun, stun);
+                        if (stun > 0.5f) lastEffectiveTechnique = index;
                         GripStrength = Clamp01(GripStrength - dmg * 1.5f);
                         if (Grip != GripType.None && stun > 1.2f && R() < 0.6f) ReleaseGrip();
                     }
@@ -367,6 +402,7 @@ namespace SelfDefenseRL
             // Abstand schaffen
             if (t.Push > 0f && Grip == GripType.None)
                 PushAttacker(t.Push * power * eff);
+            resolvingTechnique = 0;
         }
 
         void ReleaseGrip()
@@ -376,6 +412,12 @@ namespace SelfDefenseRL
             Grip = GripType.None;
             GripStrength = 0f;
             ev.GripsReleased++;
+            if (resolvingTechnique > 0)
+            {
+                TechniqueReleases[resolvingTechnique]++;
+                lastEffectiveTechnique = resolvingTechnique;
+            }
+            if (FirstReleaseTime < 0f) FirstReleaseTime = Time;
             AttStun = Math.Max(AttStun, S.ReleaseRecovery); // kurz aus dem Gleichgewicht
             // Angreifer kommt nicht direkt auf der Verteidigerin zu stehen
             if (Distance < 0.6f || wasMount) PushAttacker(0.7f);
@@ -385,6 +427,13 @@ namespace SelfDefenseRL
         {
             AttDown = Math.Max(AttDown, 1.5f + AttDamage * 2f);
             ev.Knockdowns++;
+            if (resolvingTechnique > 0)
+            {
+                TechniqueKnockdowns[resolvingTechnique]++;
+                lastEffectiveTechnique = resolvingTechnique;
+            }
+            // liegender Angreifer braucht Platz
+            ClampToArena(ref AX, ref AZ, LyingMargin * (float)Math.Pow(MassRatio, 0.25));
             if (Grip != GripType.None) ReleaseGrip();
         }
 
@@ -395,7 +444,7 @@ namespace SelfDefenseRL
             if (len < 1e-4f) { vx = R(-1f, 1f); vz = R(-1f, 1f); len = (float)Math.Sqrt(vx * vx + vz * vz) + 1e-4f; }
             AX += vx / len * amount;
             AZ += vz / len * amount;
-            ClampToArena(ref AX, ref AZ, 0.3f);
+            ClampToArena(ref AX, ref AZ, AttRadius);
         }
 
         // ================================================================== Angreifer (Skript)
@@ -425,14 +474,14 @@ namespace SelfDefenseRL
                 Hurt(S.ChokeDamagePerSecond * (float)Math.Sqrt(StrengthRatio) * GripStrength * dt);
 
             // Griff → Angreifer klebt an der Verteidigerin
-            if (Grip != GripType.None) FollowDefender();
+            if (Grip != GripType.None) FollowDefender(dt);
             else if (Distance > 0.8f)
             {
                 float speed = S.AttackerSpeed * (1f - 0.5f * AttDamage);
                 float vx = DX - AX, vz = DZ - AZ, len = Distance;
                 AX += vx / len * speed * dt;
                 AZ += vz / len * speed * dt;
-                ClampToArena(ref AX, ref AZ, 0.3f);
+                ClampToArena(ref AX, ref AZ, AttRadius);
             }
 
             attDecisionTimer -= dt;
@@ -495,12 +544,15 @@ namespace SelfDefenseRL
             else g = GripType.BearHug;
 
             SetGrip(g, R(0.7f, 0.9f) * (1f - 0.6f * AttDamage));
+            TimesGrabbed++;
             ev.PositionWorsened++;
         }
 
         void Takedown()
         {
             DefGrounded = true;
+            Takedowns++;
+            ClampToArena(ref DX, ref DZ, LyingMargin); // liegend braucht man Platz (Kopf nicht in der Wand)
             SetGrip(GripType.Mount, Math.Max(GripStrength, 0.7f));
             DefBusy = 0f; DefTechnique = 0;
             Hurt(0.05f);
@@ -522,23 +574,49 @@ namespace SelfDefenseRL
         void Hurt(float amount)
         {
             DefHealth -= amount;
+            DamageTakenTotal += amount;
             ev.DamageTaken += amount;
         }
 
-        void FollowDefender()
+        /// <summary>
+        /// Angreifer hält fest: er bleibt auf der Seite, von der er gegriffen hat, und drückt die
+        /// Verteidigerin bei Clinch/Würgen rückwärts gegen die Wand. Wände sind fest.
+        /// </summary>
+        void FollowDefender(float dt)
         {
-            float offX = 0f, offZ = 0.6f;
+            float off;
             switch (Grip)
             {
-                case GripType.Wrist: offZ = 0.8f; break;
-                case GripType.BearHug: offZ = -0.4f; break;
-                case GripType.Mount: offZ = 0f; break;
+                case GripType.Wrist: off = 0.8f; break;
+                case GripType.BearHug: off = 0.35f; break;
+                case GripType.Mount: off = 0f; break;
+                default: off = 0.25f + AttRadius; break; // FrontPin, Choke: Brust an Brust
             }
-            // Bei FrontPin an der Wand: Angreifer steht zwischen Verteidigerin und Raum
-            if (Grip == GripType.FrontPin && DZ < -S.ArenaHalfSize + 1f) offZ = 0.6f;
-            AX = DX + offX;
-            AZ = DZ + offZ;
-            ClampToArena(ref AX, ref AZ, 0.1f);
+
+            // Zur Wand drücken (nur stehend, Clinch oder Würgen)
+            if (!DefGrounded && (Grip == GripType.FrontPin || Grip == GripType.Choke))
+            {
+                float drive = S.WallDriveSpeed * (float)Math.Sqrt(StrengthRatio) * GripStrength * dt;
+                DX -= gripDirX * drive;
+                DZ -= gripDirZ * drive;
+            }
+
+            float margin = DefGrounded ? LyingMargin : DefRadius;
+            ClampToArena(ref DX, ref DZ, margin);
+            AX = DX + gripDirX * off;
+            AZ = DZ + gripDirZ * off;
+
+            // Angreifer passt nicht mehr hin (Wand hinter ihm) → beide verschieben
+            float ax = AX, az = AZ;
+            ClampToArena(ref AX, ref AZ, AttRadius);
+            if (Math.Abs(ax - AX) > 1e-4f || Math.Abs(az - AZ) > 1e-4f)
+            {
+                DX = AX - gripDirX * off;
+                DZ = AZ - gripDirZ * off;
+                ClampToArena(ref DX, ref DZ, margin);
+            }
+
+            if (!DefGrounded && SpaceBehind() < DefRadius + 0.15f) TimePinnedToWall += dt;
         }
 
         // ================================================================== Hilfen
