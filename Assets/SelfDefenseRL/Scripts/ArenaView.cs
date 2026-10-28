@@ -1,64 +1,90 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace SelfDefenseRL
 {
     /// <summary>
-    /// Zeigt den Zustand der Simulation auf den GameObjects an (nur Darstellung, keine Logik).
-    /// Kapsel blau = Verteidigerin, Kapsel rot = Angreifer (Grösse skaliert mit dem Masseverhältnis).
+    /// Zeigt den Zustand der Simulation mit zwei menschlichen Figuren an (nur Darstellung, keine Logik).
+    /// Blau = Verteidigerin, Rot = Angreifer (grösser und breiter je nach Masseverhältnis).
     /// </summary>
     public class ArenaView : MonoBehaviour
     {
         public DefenderAgent agent;
-        public Transform defender;
-        public Transform attacker;
+        public HumanoidFigure defender;
+        public HumanoidFigure attacker;
         public TextMesh label;
         public LineRenderer gripLine;
-        public float smoothing = 15f;
+        public float smoothing = 12f;
+        [Tooltip("So lange (Sekunden Simulationszeit) bleibt eine Schlag-/Technik-Pose sichtbar")]
+        public float poseHold = 0.3f;
 
-        Renderer attackerRenderer;
-        Renderer defenderRenderer;
-        static readonly Color AttackerColor = new Color(0.85f, 0.2f, 0.2f);
-        static readonly Color StunColor = new Color(1f, 0.85f, 0.2f);
+        static readonly Color AttackerColor = new Color(0.8f, 0.18f, 0.18f);
+        static readonly Color StunColor = new Color(1f, 0.8f, 0.2f);
         static readonly Color DownColor = new Color(0.45f, 0.45f, 0.45f);
         static readonly Color DefenderColor = new Color(0.2f, 0.45f, 0.95f);
-        static readonly Color DefenderHurtColor = new Color(0.6f, 0.1f, 0.6f);
+        static readonly Color DefenderHurtColor = new Color(0.55f, 0.1f, 0.55f);
         static readonly Color SuccessColor = new Color(0.2f, 0.85f, 0.3f);
 
         MaterialPropertyBlock block;
+        readonly List<Renderer> attackerBody = new List<Renderer>();
+        readonly List<Renderer> defenderBody = new List<Renderer>();
+        float defenderYaw, attackerYaw;
 
         void Awake()
         {
-            if (attacker) attackerRenderer = attacker.GetComponentInChildren<Renderer>();
-            if (defender) defenderRenderer = defender.GetComponentInChildren<Renderer>();
             block = new MaterialPropertyBlock();
+            CollectBody(attacker, attackerBody);
+            CollectBody(defender, defenderBody);
+        }
+
+        static void CollectBody(HumanoidFigure fig, List<Renderer> list)
+        {
+            list.Clear();
+            if (fig == null) return;
+            foreach (var r in fig.GetComponentsInChildren<Renderer>())
+                if (fig.bodyMaterial == null || r.sharedMaterial == fig.bodyMaterial) list.Add(r);
         }
 
         void LateUpdate()
         {
-            if (agent == null || agent.Sim == null) return;
+            if (agent == null || agent.Sim == null || defender == null || attacker == null) return;
             var s = agent.Sim;
             float k = 1f - Mathf.Exp(-smoothing * Time.deltaTime);
 
-            // --- Verteidigerin
-            var dTarget = new Vector3(s.DX, s.DefGrounded ? 0.3f : 1f, s.DZ);
-            defender.localPosition = Vector3.Lerp(defender.localPosition, dTarget, k);
-            var dRot = s.DefGrounded ? Quaternion.Euler(90f, 0f, 0f) : Quaternion.identity;
-            defender.localRotation = Quaternion.Slerp(defender.localRotation, dRot, k);
+            var dPos = new Vector3(s.DX, 0f, s.DZ);
+            var aPos = new Vector3(s.AX, 0f, s.AZ);
 
-            // --- Angreifer (Volumen ~ Masse → Skalierung mit Kubikwurzel)
-            float scale = Mathf.Pow(s.MassRatio, 1f / 3f);
-            attacker.localScale = new Vector3(scale, scale, scale);
-            bool down = s.AttDown > 0f;
-            var aTarget = new Vector3(s.AX, down ? 0.35f * scale : 1f * scale, s.AZ);
-            if (s.Grip == GripType.Mount) aTarget.y = 0.9f * scale;
-            attacker.localPosition = Vector3.Lerp(attacker.localPosition, aTarget, k);
-            var aRot = down ? Quaternion.Euler(0f, 0f, 90f) : Quaternion.identity;
-            attacker.localRotation = Quaternion.Slerp(attacker.localRotation, aRot, k);
+            // --- Blickrichtungen
+            Vector3 toAtt = aPos - dPos;
+            if (toAtt.sqrMagnitude > 0.0004f)
+            {
+                float yaw = Mathf.Atan2(toAtt.x, toAtt.z) * Mathf.Rad2Deg;
+                if (!s.DefGrounded)
+                    defenderYaw = s.Grip == GripType.BearHug ? yaw + 180f : yaw; // Umklammerung von hinten
+                if (s.Grip != GripType.Mount && s.AttDown <= 0f)
+                    attackerYaw = yaw + 180f;
+            }
+            if (s.Grip == GripType.Mount) attackerYaw = defenderYaw + 180f;
+
+            // --- Verteidigerin
+            Vector3 dForward = Quaternion.Euler(0f, defenderYaw, 0f) * Vector3.forward;
+            defender.transform.localPosition = Vector3.Lerp(defender.transform.localPosition, dPos, k);
+            defender.transform.localRotation = Quaternion.Slerp(defender.transform.localRotation, Quaternion.Euler(0f, defenderYaw, 0f), k);
+            defender.SetPose(DefenderPose(s));
+
+            // --- Angreifer: grösser und breiter
+            float height = Mathf.Pow(s.MassRatio, 0.25f);
+            float width = Mathf.Pow(s.MassRatio, 0.375f);
+            attacker.transform.localScale = new Vector3(width, height, width);
+            if (s.Grip == GripType.Mount) aPos = dPos - dForward * 0.25f; // kniet über dem Oberkörper
+            attacker.transform.localPosition = Vector3.Lerp(attacker.transform.localPosition, aPos, k);
+            attacker.transform.localRotation = Quaternion.Slerp(attacker.transform.localRotation, Quaternion.Euler(0f, attackerYaw, 0f), k);
+            attacker.SetPose(AttackerPose(s));
 
             // --- Farben
-            SetColor(attackerRenderer, down ? DownColor : (s.AttStun > 0f ? StunColor : AttackerColor));
-            Color dc = s.Done && s.Success ? SuccessColor : Color.Lerp(DefenderHurtColor, DefenderColor, s.DefHealth);
-            SetColor(defenderRenderer, dc);
+            bool down = s.AttDown > 0f;
+            SetColor(attackerBody, down ? DownColor : (s.AttStun > 0f ? StunColor : AttackerColor));
+            SetColor(defenderBody, s.Done && s.Success ? SuccessColor : Color.Lerp(DefenderHurtColor, DefenderColor, s.DefHealth));
 
             // --- Griff-Linie
             if (gripLine)
@@ -66,8 +92,8 @@ namespace SelfDefenseRL
                 gripLine.enabled = s.Grip != GripType.None;
                 if (gripLine.enabled)
                 {
-                    gripLine.SetPosition(0, defender.position);
-                    gripLine.SetPosition(1, attacker.position);
+                    gripLine.SetPosition(0, defender.ChestPosition);
+                    gripLine.SetPosition(1, attacker.ChestPosition);
                 }
             }
 
@@ -75,19 +101,84 @@ namespace SelfDefenseRL
             if (label)
             {
                 label.text = agent.StatusText();
-                label.transform.position = defender.position + Vector3.up * 1.6f;
+                label.transform.position = defender.transform.position + Vector3.up * 2.1f;
                 var cam = Camera.main;
                 if (cam) label.transform.rotation = Quaternion.LookRotation(label.transform.position - cam.transform.position);
             }
         }
 
-        void SetColor(Renderer r, Color c)
+        // ------------------------------------------------------------------ Posen
+        Pose DefenderPose(CombatSimulation s)
         {
-            if (r == null) return;
-            r.GetPropertyBlock(block);
-            block.SetColor("_BaseColor", c); // URP
-            block.SetColor("_Color", c);     // Built-in
-            r.SetPropertyBlock(block);
+            int tech = s.DefTechnique;
+            if (tech == 0 && s.Time - s.LastDefTechniqueTime < poseHold) tech = s.LastDefTechnique;
+
+            if (s.DefGrounded)
+            {
+                if (tech > 0)
+                {
+                    string n = TechniqueLibrary.All[tech].Name;
+                    if (n == "BridgeRoll") return Pose.Bridge;
+                    if (n == "HipEscape") return Pose.HipEscape;
+                    if (n == "StandUp") return Pose.StandUp;
+                }
+                return Pose.LyingBack;
+            }
+
+            if (tech > 0) return TechniquePose(TechniqueLibrary.All[tech].Name);
+            if (s.DefGuard > 0f) return Pose.Guard;
+            return s.Grip == GripType.None ? Pose.Guard : Pose.Idle;
+        }
+
+        Pose AttackerPose(CombatSimulation s)
+        {
+            if (s.AttDown > 0f) return Pose.LyingBack;
+            if (s.AttStun > 0f) return Pose.Stunned;
+            switch (s.Grip)
+            {
+                case GripType.Mount: return Pose.Kneel;
+                case GripType.Choke: return Pose.Choke;
+                case GripType.Wrist:
+                case GripType.FrontPin:
+                case GripType.BearHug:
+                    return s.Time - s.LastAttackerStrikeTime < poseHold ? Pose.Punch : Pose.Grab;
+            }
+            return s.Time - s.LastAttackerStrikeTime < poseHold ? Pose.Punch : Pose.Guard;
+        }
+
+        static Pose TechniquePose(string name)
+        {
+            switch (name)
+            {
+                case "PalmStrike":
+                case "JabCross":
+                case "FaceStrike":
+                case "HammerFist": return Pose.Punch;
+                case "Elbow": return Pose.Elbow;
+                case "KneeGroin": return Pose.Knee;
+                case "KickKnee":
+                case "RoundKickThigh": return Pose.Kick;
+                case "Frame":
+                case "PushOff": return Pose.Push;
+                case "GripReleaseThumb":
+                case "ChokeDefense": return Pose.Release;
+                case "DropWeight": return Pose.DropWeight;
+                case "HipThrow": return Pose.Throw;
+                case "Guard": return Pose.Guard;
+                default: return Pose.Idle;
+            }
+        }
+
+        void SetColor(List<Renderer> renderers, Color c)
+        {
+            foreach (var r in renderers)
+            {
+                if (r == null) continue;
+                r.GetPropertyBlock(block);
+                block.SetColor("_BaseColor", c); // URP
+                block.SetColor("_Color", c);     // Built-in
+                r.SetPropertyBlock(block);
+            }
         }
     }
 }

@@ -35,12 +35,15 @@ namespace SelfDefenseRL.EditorTools
             var lineMat = GetOrCreateLineMaterial();
             var floorMat = GetOrCreateColorMaterial("Floor", new Color(0.82f, 0.82f, 0.78f));
             var wallMat = GetOrCreateColorMaterial("Wall", new Color(0.35f, 0.35f, 0.4f));
+            var defMat = GetOrCreateColorMaterial("DefenderBody", new Color(0.2f, 0.45f, 0.95f));
+            var attMat = GetOrCreateColorMaterial("AttackerBody", new Color(0.8f, 0.18f, 0.18f));
+            var skinMat = GetOrCreateColorMaterial("Skin", new Color(0.93f, 0.76f, 0.62f));
 
             int cols = Mathf.CeilToInt(Mathf.Sqrt(arenas));
             for (int i = 0; i < arenas; i++)
             {
                 var pos = new Vector3((i % cols) * ArenaSpacing, 0f, (i / cols) * ArenaSpacing);
-                CreateArena(i, pos, lineMat, floorMat, wallMat, csvLog);
+                CreateArena(i, pos, lineMat, floorMat, wallMat, defMat, attMat, skinMat, csvLog);
             }
 
             // Kamera
@@ -67,7 +70,8 @@ namespace SelfDefenseRL.EditorTools
             Debug.Log($"[SelfDefenseRL] Szene gespeichert: {path} ({arenas} Arena(s))");
         }
 
-        static void CreateArena(int index, Vector3 position, Material lineMat, Material floorMat, Material wallMat, bool csvLog)
+        static void CreateArena(int index, Vector3 position, Material lineMat, Material floorMat, Material wallMat,
+                                Material defMat, Material attMat, Material skinMat, bool csvLog)
         {
             var root = new GameObject($"Arena_{index:00}");
             root.transform.position = position;
@@ -86,9 +90,10 @@ namespace SelfDefenseRL.EditorTools
             CreateWall(root.transform, new Vector3(h + 0.1f, 0.5f, 0f), new Vector3(0.2f, 1f, 8.4f), wallMat);
             CreateWall(root.transform, new Vector3(-h - 0.1f, 0.5f, 0f), new Vector3(0.2f, 1f, 8.4f), wallMat);
 
-            // Figuren (Collider entfernt: die Physik steckt in CombatSimulation)
-            var defender = CreateCapsule("Defender", root.transform, new Vector3(0f, 1f, 0f));
-            var attacker = CreateCapsule("Attacker", root.transform, new Vector3(0f, 1f, 1f));
+            // Menschliche Figuren (ohne Collider: die Kampflogik steckt in CombatSimulation)
+            var defenderFig = CreateFigure("Defender", root.transform, new Vector3(0f, 0f, 0f), 0f, defMat, skinMat);
+            var attackerFig = CreateFigure("Attacker", root.transform, new Vector3(0f, 0f, 1f), 180f, attMat, skinMat);
+            var defender = defenderFig.gameObject;
 
             // Agent
             var agent = defender.AddComponent<DefenderAgent>();
@@ -128,8 +133,8 @@ namespace SelfDefenseRL.EditorTools
 
             var view = root.AddComponent<ArenaView>();
             view.agent = agent;
-            view.defender = defender.transform;
-            view.attacker = attacker.transform;
+            view.defender = defenderFig;
+            view.attacker = attackerFig;
             view.label = label;
             view.gripLine = line;
         }
@@ -145,14 +150,15 @@ namespace SelfDefenseRL.EditorTools
             wall.GetComponent<Renderer>().sharedMaterial = mat;
         }
 
-        static GameObject CreateCapsule(string name, Transform parent, Vector3 localPos)
+        static HumanoidFigure CreateFigure(string name, Transform parent, Vector3 localPos, float yaw, Material body, Material skin)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            go.name = name;
+            var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPos;
-            Object.DestroyImmediate(go.GetComponent<Collider>());
-            return go;
+            go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            var fig = go.AddComponent<HumanoidFigure>();
+            fig.Build(body, skin);
+            return fig;
         }
 
         static Material GetOrCreateLineMaterial()

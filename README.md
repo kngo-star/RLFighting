@@ -24,7 +24,8 @@ Assets/SelfDefenseRL/
     TechniqueLibrary.cs   20 abstrakte Techniken mit Parametern + Stil-Zuordnung
     CombatSimulation.cs   Kampfmodell in reinem C# (Angreifer-KI, Griffe, Schaden, Flucht)
     DefenderAgent.cs      ML-Agents-Agent: Observations, Action Masking, Rewards, Statistik
-    ArenaView.cs          Darstellung (Kapseln, Farben, Griff-Linie, Text)
+    ArenaView.cs          Darstellung (Figuren, Posen, Farben, Griff-Linie, Text)
+    HumanoidFigure.cs     menschliche Figur aus Grundkörpern mit Gelenken und Posen
     EpisodeCsvLogger.cs   CSV-Log jeder Episode für die Auswertung
   Editor/
     SceneBuilder.cs       Menü "SelfDefenseRL" → baut die Szenen automatisch
@@ -80,7 +81,8 @@ In Unity in der Menüleiste: **SelfDefenseRL → Trainings-Szene erstellen (16 A
 Die Szene wird unter `Assets/SelfDefenseRL/Scenes/Training.unity` gespeichert.
 Für eine einzelne Arena zum Anschauen: **SelfDefenseRL → Demo-Szene erstellen (1 Arena)**.
 
-Darstellung: blaue Kapsel = Verteidigerin, rote Kapsel = Angreifer (grösser je nach Masseverhältnis),
+Darstellung: blaue Figur = Verteidigerin, rote Figur = Angreifer (grösser und breiter je nach Masseverhältnis).
+Die Figuren nehmen zu jeder Technik eine passende Haltung ein (Schlag, Knie, Abstossen, Würgen, am Boden …);
 gelb = Angreifer benommen, grau = Angreifer am Boden, orange Linie = aktiver Griff, grün = Flucht gelungen.
 
 Ohne Training kannst du die regelbasierte Baseline anschauen: Defender auswählen →

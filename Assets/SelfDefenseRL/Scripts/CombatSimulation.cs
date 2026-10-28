@@ -56,6 +56,11 @@ namespace SelfDefenseRL
         public bool AttIncapacitated;
         float attDecisionTimer;
 
+        // Für die Darstellung: wann zuletzt etwas passiert ist
+        public float LastAttackerStrikeTime = -10f;
+        public int LastDefTechnique;
+        public float LastDefTechniqueTime = -10f;
+
         // ------------------------------------------------------------------ Ergebnis
         public bool Done { get; private set; }
         public bool Success { get; private set; }
@@ -114,6 +119,7 @@ namespace SelfDefenseRL
             Grip = GripType.None; GripStrength = 0f;
             AttStun = 0f; AttBalance = 1f; AttDown = 0f; AttDamage = 0f; AttIncapacitated = false;
             attDecisionTimer = R(0.3f, 0.7f);
+            LastAttackerStrikeTime = -10f; LastDefTechnique = 0; LastDefTechniqueTime = -10f;
 
             float h = S.ArenaHalfSize;
             float jx = R(-1f, 1f), jz = R(-1f, 1f);
@@ -243,6 +249,8 @@ namespace SelfDefenseRL
                 if (DefBusy <= 0f)
                 {
                     DefBusy = 0f;
+                    LastDefTechnique = DefTechnique;
+                    LastDefTechniqueTime = Time;
                     ResolveTechnique(DefTechnique);
                     DefTechnique = 0;
                 }
@@ -503,6 +511,7 @@ namespace SelfDefenseRL
         {
             float exposure = DefBusy > 0f ? TechniqueLibrary.All[DefTechnique].Exposure : 0f;
             float guard = DefGuard > 0f ? 0.25f : 0f;
+            LastAttackerStrikeTime = Time;
             float hitChance = S.AttackerBaseHitChance + hitBonus + exposure - guard;
             if (R() >= hitChance) return;
             float dmg = S.AttackerStrikeDamage * damageMult * (float)Math.Sqrt(StrengthRatio)
