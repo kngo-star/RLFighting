@@ -59,7 +59,8 @@ Stile: `Untrained` (Baseline), `Boxing`, `MuayThai`, `BJJ`, `Judo`, `KravMaga`, 
    ```bash
    git clone https://github.com/kngo-star/RLFighting.git
    ```
-3. Unity Hub → **Add → Add project from disk** → Ordner `RLFighting` wählen und öffnen.
+3. Unity Hub → **Add → Add project from repository** (oder nach dem Klonen **Add project from disk**).
+   Fragt der Hub nach der Editor-Version, wähl deine installierte Unity-6-Version und bestätige das Upgrade.
    Unity erzeugt fehlende Projektdateien selbst und installiert das Package `com.unity.ml-agents`
    (steht in `Packages/manifest.json`). Falls der Package Manager meckert:
    *Window → Package Manager → + → Add package by name → `com.unity.ml-agents`*.
