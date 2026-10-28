@@ -29,6 +29,8 @@ namespace SelfDefenseRL
             // 0 = Werte wie in TechniqueLibrary. 0.6 = "keine Technik ist unabhängig von Kraft".
             public float MassScalingFloor = 0f;
             public float StrengthScalingFloor = 0f;
+            /// <summary>true = jeder Stil darf zusätzlich beissen, Augen stechen, in die Hoden treten, Kopfstoss.</summary>
+            public bool DirtyTricksForAll = false;
             public float WallDriveSpeed = 0.6f; // m/s, mit der der Angreifer im Clinch zur Wand drückt
         }
 
@@ -88,16 +90,17 @@ namespace SelfDefenseRL
         public struct HitEvent
         {
             public bool OnDefender;   // true = Verteidigerin wurde getroffen, false = Angreifer
-            public HitZone Zone;
+            public BodyPart Part;
             public float Strength;    // ~0..1
             public float DirX, DirZ;  // Richtung der Kraft (Welt, x/z)
             public bool Knockdown;
         }
         public readonly System.Collections.Generic.List<HitEvent> Hits = new System.Collections.Generic.List<HitEvent>();
 
-        /// <summary>Schaden pro Körperzone (Kopf, Rumpf, Beine) für die Anzeige, 0..1.</summary>
-        public readonly float[] DefZoneDamage = new float[3];
-        public readonly float[] AttZoneDamage = new float[3];
+        /// <summary>Verletzung pro Körperteil (BodyPart) für die Anzeige, 0 = unverletzt, 1 = schwer verletzt.</summary>
+        public const int PartCount = 7;
+        public readonly float[] DefPartDamage = new float[PartCount];
+        public readonly float[] AttPartDamage = new float[PartCount];
 
         int resolvingTechnique;            // Technik, die gerade ausgewertet wird
         int lastEffectiveTechnique;
@@ -158,7 +161,7 @@ namespace SelfDefenseRL
             Array.Clear(TechniqueWallTurns, 0, TechniqueWallTurns.Length);
             DecisiveTechnique = 0; DamageTakenTotal = 0f; TimesGrabbed = 0; Takedowns = 0;
             TimePinnedToWall = 0f; FirstReleaseTime = -1f;
-            Hits.Clear(); Array.Clear(DefZoneDamage, 0, 3); Array.Clear(AttZoneDamage, 0, 3);
+            Hits.Clear(); Array.Clear(DefPartDamage, 0, PartCount); Array.Clear(AttPartDamage, 0, PartCount);
             resolvingTechnique = 0; lastEffectiveTechnique = 0;
 
             DefHealth = 1f; DefStamina = 1f; DefGrounded = false;
@@ -240,7 +243,7 @@ namespace SelfDefenseRL
             if (index == 0) return true;
             if (Done || DefBusy > 0f) return false;
             var t = TechniqueLibrary.All[index];
-            if (!TechniqueLibrary.StyleAllows(t, Style)) return false;
+            if (!TechniqueLibrary.Allowed(t, Style, S.DirtyTricksForAll)) return false;
             var ctx = CurrentContext();
             if ((t.Contexts & ctx) == 0) return false;
             if (ctx == Context.StandingFree)
@@ -385,8 +388,10 @@ namespace SelfDefenseRL
                     {
                         float dmg = t.Damage * power * eff * groundPenalty * R(0.7f, 1.2f);
                         AttDamage = Clamp01(AttDamage + dmg);
-                        AttZoneDamage[(int)t.Target] = Clamp01(AttZoneDamage[(int)t.Target] + dmg * 2f);
-                        AddHit(false, t.Target, dmg * 5f, AX - DX, AZ - DZ, false);
+                        var part = ToPart(t.Target);
+                        AttPartDamage[(int)part] = Clamp01(AttPartDamage[(int)part] + dmg * 2.5f);
+                        AddHit(false, part, dmg * 5f, AX - DX, AZ - DZ, false);
+                        if (t.SelfDamage > 0f) { Hurt(t.SelfDamage); DefPartDamage[0] = Clamp01(DefPartDamage[0] + t.SelfDamage * 2f); }
                         float stun = t.StunFactor * dmg * 6f;
                         AttStun = Math.Max(AttStun, stun);
                         if (stun > 0.5f) lastEffectiveTechnique = index;
@@ -396,7 +401,7 @@ namespace SelfDefenseRL
                     if (t.Balance > 0f)
                     {
                         AttBalance -= t.Balance * power * eff * R(0.7f, 1.2f);
-                        if (AttBalance <= 0f) { KnockDownAttacker(); AddHit(false, HitZone.Body, 0.8f, AX - DX, AZ - DZ, true); }
+                        if (AttBalance <= 0f) { KnockDownAttacker(); AddHit(false, BodyPart.Torso, 0.8f, AX - DX, AZ - DZ, true); }
                     }
                     if (!AttIncapacitated && AttDamage >= 0.9f)
                     {
@@ -520,7 +525,7 @@ namespace SelfDefenseRL
             {
                 float c = S.ChokeDamagePerSecond * (float)Math.Sqrt(StrengthRatio) * GripStrength * dt;
                 Hurt(c);
-                DefZoneDamage[0] = Clamp01(DefZoneDamage[0] + c * 1.5f); // Hals/Kopf
+                DefPartDamage[0] = Clamp01(DefPartDamage[0] + c * 1.5f); // Hals/Kopf
             }
 
             // Griff → Angreifer klebt an der Verteidigerin
@@ -606,7 +611,7 @@ namespace SelfDefenseRL
             SetGrip(GripType.Mount, Math.Max(GripStrength, 0.7f));
             DefBusy = 0f; DefTechnique = 0;
             Hurt(0.05f);
-            AddHit(true, HitZone.Body, 0.7f, DX - AX, DZ - AZ, true);
+            AddHit(true, BodyPart.Torso, 0.7f, DX - AX, DZ - AZ, true);
             ev.PositionWorsened++;
         }
 
@@ -620,9 +625,12 @@ namespace SelfDefenseRL
             float dmg = S.AttackerStrikeDamage * damageMult * (float)Math.Sqrt(StrengthRatio)
                         * (1f - 0.5f * AttDamage) * (DefGuard > 0f ? 0.4f : 1f) * R(0.7f, 1.3f);
             Hurt(dmg);
-            var zone = DefGuard > 0f ? HitZone.Body : (R() < 0.65f ? HitZone.Head : HitZone.Body); // Deckung schützt den Kopf
-            DefZoneDamage[(int)zone] = Clamp01(DefZoneDamage[(int)zone] + dmg * 2.5f);
-            AddHit(true, zone, dmg * 6f, DX - AX, DZ - AZ, false);
+            // Deckung: Schlag landet auf den Armen statt am Kopf
+            var part = DefGuard > 0f ? ToPart(HitZone.Arms)
+                     : (DefGrounded ? (R() < 0.7f ? BodyPart.Head : BodyPart.Torso)
+                     : (R() < 0.6f ? BodyPart.Head : (R() < 0.75f ? BodyPart.Torso : ToPart(HitZone.Legs))));
+            DefPartDamage[(int)part] = Clamp01(DefPartDamage[(int)part] + dmg * 3f);
+            AddHit(true, part, dmg * 6f, DX - AX, DZ - AZ, false);
         }
 
         void Hurt(float amount)
@@ -674,12 +682,24 @@ namespace SelfDefenseRL
         }
 
         // ================================================================== Hilfen
-        void AddHit(bool onDefender, HitZone zone, float strength, float dx, float dz, bool knockdown)
+        BodyPart ToPart(HitZone z)
+        {
+            switch (z)
+            {
+                case HitZone.Head: return BodyPart.Head;
+                case HitZone.Groin: return BodyPart.Groin;
+                case HitZone.Arms: return R() < 0.5f ? BodyPart.ArmL : BodyPart.ArmR;
+                case HitZone.Legs: return R() < 0.5f ? BodyPart.LegL : BodyPart.LegR;
+                default: return BodyPart.Torso;
+            }
+        }
+
+        void AddHit(bool onDefender, BodyPart part, float strength, float dx, float dz, bool knockdown)
         {
             float len = (float)Math.Sqrt(dx * dx + dz * dz);
             if (len < 1e-4f) { dx = 0f; dz = 1f; len = 1f; }
             if (Hits.Count < 64)
-                Hits.Add(new HitEvent { OnDefender = onDefender, Zone = zone, Strength = Math.Min(1.2f, strength),
+                Hits.Add(new HitEvent { OnDefender = onDefender, Part = part, Strength = Math.Min(1.2f, strength),
                                         DirX = dx / len, DirZ = dz / len, Knockdown = knockdown });
         }
 

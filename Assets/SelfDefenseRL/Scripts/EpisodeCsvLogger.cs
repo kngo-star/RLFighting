@@ -36,7 +36,7 @@ namespace SelfDefenseRL
                 var sb = new StringBuilder();
                 if (newFile)
                 {
-                    sb.Append("scenario,style,mass_ratio,strength_ratio,success,end_reason,time,health_left,attacker_damage,damage_taken,times_grabbed,takedowns,time_pinned_wall,first_release_time,decisive_technique");
+                    sb.Append("scenario,style,mass_ratio,strength_ratio,success,end_reason,time,health_left,attacker_damage,damage_taken,times_grabbed,takedowns,time_pinned_wall,first_release_time,decisive_technique,dirty_tricks");
                     for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(",uses_").Append(TechniqueLibrary.All[i].Name);
                     for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(",hits_").Append(TechniqueLibrary.All[i].Name);
                     for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(",releases_").Append(TechniqueLibrary.All[i].Name);
@@ -58,7 +58,8 @@ namespace SelfDefenseRL
                   .Append(sim.Takedowns).Append(',')
                   .Append(sim.TimePinnedToWall.ToString("0.##", inv)).Append(',')
                   .Append(sim.FirstReleaseTime.ToString("0.##", inv)).Append(',')
-                  .Append(sim.Success ? TechniqueLibrary.All[sim.DecisiveTechnique].Name : "");
+                  .Append(sim.Success ? TechniqueLibrary.All[sim.DecisiveTechnique].Name : "").Append(',')
+                  .Append(sim.S.DirtyTricksForAll ? 1 : 0);
                 for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(sim.TechniqueUses[i]);
                 for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(sim.TechniqueHits[i]);
                 for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(sim.TechniqueReleases[i]);

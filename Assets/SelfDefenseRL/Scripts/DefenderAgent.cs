@@ -14,11 +14,11 @@ namespace SelfDefenseRL
     /// Actions (diskret):
     ///   Branch 0: Bewegung (5)          – siehe MoveAction
     ///   Branch 1: Technik (TechniqueLibrary.Count) – per Action Masking auf Stil + Lage begrenzt
-    /// Observations: 46 Floats (siehe CollectObservations)
+    /// Observations: 47 Floats (siehe CollectObservations)
     /// </summary>
     public class DefenderAgent : Agent
     {
-        public const int ObservationSize = 46;
+        public const int ObservationSize = 47;
 
         [Header("Episode-Setup (-1 = aus Trainings-Config bzw. zufällig)")]
         [Tooltip("-1 = zufällig / Config, sonst Index aus Scenario")]
@@ -45,6 +45,9 @@ namespace SelfDefenseRL
 
         public static readonly float[] SweepMassRatios = { 1.0f, 1.2f, 1.4f, 1.6f, 1.8f };
         static int sweepCounter;
+
+        /// <summary>-1 = aus Config (dirty_tricks), 0 = aus, 1 = an. Wird vom StatsHUD-Knopf gesetzt.</summary>
+        public static int DirtyTricksOverride = -1;
 
         [Header("Rewards")]
         public float rewardEscape = 1.0f;
@@ -98,6 +101,7 @@ namespace SelfDefenseRL
             var p = Academy.Instance.EnvironmentParameters;
             Sim.S.MassScalingFloor = p.GetWithDefault("mass_scaling_floor", 0f);
             Sim.S.StrengthScalingFloor = p.GetWithDefault("strength_scaling_floor", 0f);
+            Sim.S.DirtyTricksForAll = DirtyTricksOverride >= 0 ? DirtyTricksOverride == 1 : p.GetWithDefault("dirty_tricks", 0f) > 0.5f;
 
             if (evaluationSweep)
             {
@@ -173,7 +177,8 @@ namespace SelfDefenseRL
             sensor.AddObservation(Mathf.Clamp01(s.SpaceBehind() / (2f * h)));             // 1
 
             sensor.AddObservation(Mathf.Clamp01(s.Time / s.S.MaxEpisodeTime));            // 1
-            // Summe: 6 + 15 + 25 = 46
+            sensor.AddObservation(Sim.S.DirtyTricksForAll);                              // 1
+            // Summe: 6 + 15 + 26 = 47
         }
 
         // ================================================================== Action Masking

@@ -22,7 +22,10 @@ namespace SelfDefenseRL
     }
 
     /// <summary>Getroffene Körperzone (für Schadensanzeige und Treffer-Reaktion).</summary>
-    public enum HitZone { Head = 0, Body = 1, Legs = 2 }
+    public enum HitZone { Head = 0, Body = 1, Legs = 2, Groin = 3, Arms = 4 }
+
+    /// <summary>Körperteil für Schadensanzeige (grün = unverletzt, rot = schwer verletzt).</summary>
+    public enum BodyPart { Head = 0, Torso = 1, Groin = 2, ArmL = 3, ArmR = 4, LegL = 5, LegR = 6 }
 
     /// <summary>
     /// Abstrakte Technik. ALLE Zahlen sind Modellannahmen und sollten im Bericht
@@ -57,12 +60,17 @@ namespace SelfDefenseRL
         public bool RemovesMount;     // kann die Mount-Position auflösen (Bridge & Roll)
         public bool TurnsOffWall;     // dreht die Position: danach steht der Angreifer an der Wand (Underhook)
         public HitZone Target = HitZone.Body; // wo die Technik trifft
+        public bool IsDirty;          // "schmutziger" Strassen-Trick (beissen, Augen, Hoden, Kopfstoss)
+        public float SelfDamage;      // Schaden an sich selbst (z. B. Kopfstoss)
     }
 
     public static class TechniqueLibrary
     {
         /// <summary>Techniken, die jeder Mensch ohne Training hat (gehören zu jedem Stil).</summary>
         public static readonly string[] Universal = { "None", "Guard", "PushOff", "StandUp" };
+
+        /// <summary>Strassen-Tricks. Mit dirty_tricks = 1 bekommt sie JEDER Stil zusätzlich.</summary>
+        public static readonly string[] DirtyTricks = { "Bite", "EyePoke", "GroinKick", "Headbutt" };
 
         /// <summary>
         /// Welcher Kampfstil welche Techniken trainiert. Das ist die zentrale Tabelle für den Stil-Vergleich:
@@ -77,12 +85,12 @@ namespace SelfDefenseRL
             { Style.Karate,     new[] { "ReversePunch", "PalmStrike", "HammerFist", "Elbow", "FrontKick", "SideKick", "KickKnee" } },
             { Style.Taekwondo,  new[] { "ReversePunch", "FrontKick", "SideKick", "RoundKickThigh", "KickKnee" } },
             { Style.BJJ,        new[] { "Frame", "Underhook", "GripReleaseThumb", "ChokeDefense", "DropWeight", "HipThrow", "BridgeRoll", "HipEscape" } },
-            { Style.JuJutsu,    new[] { "WristLock", "GripReleaseThumb", "ChokeDefense", "DropWeight", "HipThrow", "PalmStrike", "Elbow", "KneeGroin", "KickKnee", "BridgeRoll" } },
+            { Style.JuJutsu,    new[] { "WristLock", "GripReleaseThumb", "ChokeDefense", "DropWeight", "HipThrow", "PalmStrike", "Elbow", "KneeGroin", "KickKnee", "BridgeRoll", "GroinKick", "EyePoke" } },
             { Style.Judo,       new[] { "HipThrow", "Underhook", "GripReleaseThumb", "ChokeDefense", "DropWeight", "Frame", "BridgeRoll" } },
             { Style.Wrestling,  new[] { "Underhook", "DropWeight", "Frame", "GripReleaseThumb", "HipThrow", "BridgeRoll", "HipEscape" } },
             { Style.Aikido,     new[] { "WristLock", "GripReleaseThumb", "HipThrow" } },
-            { Style.KravMaga,   new[] { "PalmStrike", "JabCross", "HammerFist", "Elbow", "KneeGroin", "FaceStrike", "KickKnee", "FrontKick", "GripReleaseThumb", "ChokeDefense", "DropWeight" } },
-            { Style.WingTsun,   new[] { "PalmStrike", "JabCross", "Elbow", "FaceStrike", "KickKnee", "GripReleaseThumb" } },
+            { Style.KravMaga,   new[] { "PalmStrike", "JabCross", "HammerFist", "Elbow", "KneeGroin", "FaceStrike", "KickKnee", "FrontKick", "GripReleaseThumb", "ChokeDefense", "DropWeight", "EyePoke", "GroinKick", "Headbutt" } },
+            { Style.WingTsun,   new[] { "PalmStrike", "JabCross", "Elbow", "FaceStrike", "KickKnee", "GripReleaseThumb", "EyePoke", "GroinKick" } },
             { Style.MMA,        new[] { "JabCross", "Elbow", "RoundKickThigh", "FrontKick", "KickKnee", "Frame", "Underhook", "DropWeight", "HipThrow", "BridgeRoll", "HipEscape", "GripReleaseThumb", "ChokeDefense" } },
             // Style.Mixed = alle Techniken (wird automatisch gesetzt)
         };
@@ -138,14 +146,14 @@ namespace SelfDefenseRL
             // ---- Ziele mit hoher Wirkung (wenig abhängig von der eigenen Masse) ----
             t.Add(new Technique
             {
-                Name = "KneeGroin", Target = HitZone.Body, Description = "Kniestoss (Leiste/Körper)",
+                Name = "KneeGroin", Target = HitZone.Groin, Description = "Kniestoss in Leiste/Körper",
                 Contexts = Context.Wrist | Context.FrontPin | Context.Choke,
                 Duration = 0.4f, Accuracy = 0.55f, Damage = 0.30f, MassScaling = 0.15f, StunFactor = 1.5f,
                 GripBreak = 0.10f, StrengthScaling = 0.3f, Exposure = 0.15f, StaminaCost = 0.05f
             });
             t.Add(new Technique
             {
-                Name = "FaceStrike", Target = HitZone.Head, Description = "Angriff auf Augen/Nase",
+                Name = "FaceStrike", Target = HitZone.Head, Description = "Schlag auf Nase/Gesicht",
                 Contexts = Context.StandingFree | Context.Wrist | Context.FrontPin | Context.Choke | Context.GroundMount,
                 Duration = 0.3f, Accuracy = 0.45f, Damage = 0.25f, MassScaling = 0f, StunFactor = 1.2f,
                 GripBreak = 0.15f, StrengthScaling = 0.2f, Exposure = 0.25f, StaminaCost = 0.04f
@@ -262,6 +270,36 @@ namespace SelfDefenseRL
                 Duration = 0.8f, Exposure = 0.3f, StaminaCost = 0.08f, IsStandUp = true
             });
 
+            // ---- Strassen-Tricks ("dirty") ----
+            t.Add(new Technique
+            {
+                Name = "Bite", Target = HitZone.Arms, IsDirty = true, Description = "Beissen in Arm/Hand, die festhält",
+                Contexts = Context.Wrist | Context.BearHug | Context.Choke | Context.FrontPin | Context.GroundMount,
+                Duration = 0.4f, Accuracy = 0.6f, Damage = 0.06f, MassScaling = 0f, StunFactor = 1.2f,
+                GripBreak = 0.3f, StrengthScaling = 0.15f, Exposure = 0.1f, StaminaCost = 0.03f
+            });
+            t.Add(new Technique
+            {
+                Name = "EyePoke", Target = HitZone.Head, IsDirty = true, Description = "Finger in die Augen",
+                Contexts = Context.StandingFree | Context.Wrist | Context.FrontPin | Context.Choke | Context.GroundMount,
+                Duration = 0.25f, Accuracy = 0.35f, Damage = 0.2f, MassScaling = 0f, StunFactor = 1.6f,
+                GripBreak = 0.2f, StrengthScaling = 0.1f, Exposure = 0.2f, StaminaCost = 0.03f
+            });
+            t.Add(new Technique
+            {
+                Name = "GroinKick", Target = HitZone.Groin, IsDirty = true, Description = "Tritt in die Hoden",
+                Contexts = Context.StandingFree | Context.Wrist | Context.Choke, MinRange = 0.5f, MaxRange = 1.3f,
+                Duration = 0.35f, Accuracy = 0.5f, Damage = 0.3f, MassScaling = 0.1f, StunFactor = 1.6f,
+                GripBreak = 0.15f, StrengthScaling = 0.3f, Exposure = 0.25f, StaminaCost = 0.05f
+            });
+            t.Add(new Technique
+            {
+                Name = "Headbutt", Target = HitZone.Head, IsDirty = true, Description = "Kopfstoss (nach vorne oder hinten)",
+                Contexts = Context.FrontPin | Context.Choke | Context.BearHug,
+                Duration = 0.3f, Accuracy = 0.6f, Damage = 0.15f, MassScaling = 0.5f, StunFactor = 0.9f,
+                GripBreak = 0.1f, StrengthScaling = 0.5f, Exposure = 0.1f, StaminaCost = 0.04f, SelfDamage = 0.02f
+            });
+
             // ---- Deckung ----
             t.Add(new Technique
             {
@@ -293,6 +331,9 @@ namespace SelfDefenseRL
         }
 
         public static bool StyleAllows(Technique t, Style s) => (t.Styles & (1 << (int)s)) != 0;
+
+        /// <summary>Wie StyleAllows, aber mit dirty_tricks: dann darf jeder Stil die Strassen-Tricks.</summary>
+        public static bool Allowed(Technique t, Style s, bool dirtyForAll) => StyleAllows(t, s) || (dirtyForAll && t.IsDirty);
 
         public static int IndexOf(string name)
         {

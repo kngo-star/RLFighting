@@ -95,7 +95,7 @@ namespace SelfDefenseRL
                 return;
             }
 
-            float w = Mathf.Min(560f, Screen.width - 20f), h = Mathf.Min(520f, Screen.height - 20f);
+            float w = Mathf.Min(640f, Screen.width - 20f), h = Mathf.Min(560f, Screen.height - 20f);
             GUI.Box(new Rect(10, 10, w, h), GUIContent.none);
             GUILayout.BeginArea(new Rect(18, 16, w - 16, h - 12));
             GUILayout.BeginHorizontal();
@@ -104,6 +104,19 @@ namespace SelfDefenseRL
             if (GUILayout.Button("Reset", GUILayout.Width(55))) ResetStats();
             if (GUILayout.Button("–", GUILayout.Width(24))) visible = false;
             GUILayout.EndHorizontal();
+
+            // Steuerung: Zeitlupe, Kamera, Strassen-Tricks
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Tempo:", GUILayout.Width(50));
+            foreach (var ts in new[] { 1f, 0.5f, 0.25f, 0.1f })
+                if (GUILayout.Toggle(Mathf.Approximately(Time.timeScale, ts), ts + "x", "Button", GUILayout.Width(44))) Time.timeScale = ts;
+            var cam = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
+            if (cam != null) cam.follow = GUILayout.Toggle(cam.follow, "Kamera folgt", "Button", GUILayout.Width(100));
+            bool dirty = DefenderAgent.DirtyTricksOverride == 1;
+            bool newDirty = GUILayout.Toggle(dirty, "Strassen-Tricks für alle", "Button", GUILayout.Width(170));
+            if (newDirty != dirty) { DefenderAgent.DirtyTricksOverride = newDirty ? 1 : 0; ResetStats(); }
+            GUILayout.EndHorizontal();
+            GUILayout.Label("Körperteile: <color=#33c74d>grün = unverletzt</color>  <color=#f9d126>gelb = angeschlagen</color>  <color=#e61414>rot = schwer verletzt</color>   Bänder: blau/rot = Team, violett = benommen, grau = am Boden", mono);
 
             scroll = GUILayout.BeginScrollView(scroll);
             GUILayout.Label(tab == 0 ? Overview() : tab == 1 ? Matrix() : Techniques(), mono);

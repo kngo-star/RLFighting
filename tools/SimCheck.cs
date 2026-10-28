@@ -1,7 +1,7 @@
 // Schneller Plausibilitäts-Check des Kampfmodells OHNE Unity (läuft mit Mono/.NET).
 //   mcs -out:simcheck.exe tools/SimCheck.cs Assets/SelfDefenseRL/Scripts/Enums.cs \
 //       Assets/SelfDefenseRL/Scripts/TechniqueLibrary.cs Assets/SelfDefenseRL/Scripts/CombatSimulation.cs
-//   mono simcheck.exe [massRatio] [random|flee] [baseline.csv|-] [massScalingFloor]
+//   mono simcheck.exe [massRatio] [random|flee] [baseline.csv|-] [massScalingFloor] [dirty]
 //   Mit CSV-Pfad: schreibt Baseline-Episoden (alle Grössen 1.0–1.8) im selben Format wie Unity → analysis/analyze_episodes.py
 // Gibt die Erfolgsrate einer einfachen Politik pro Szenario x Stil aus:
 //   random = zufällige erlaubte Technik
@@ -17,8 +17,9 @@ public static class SimCheck
         float mass = args.Length > 0 ? float.Parse(args[0], System.Globalization.CultureInfo.InvariantCulture) : 1.5f;
         float strength = (float)Math.Pow(mass, 1.3) * 1.1f;
         int episodes = 1000;
+        bool dirty = args.Length > 4 && args[4] == "dirty";
         float floor = args.Length > 3 ? float.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture) : 0f;
-        if (args.Length > 2 && args[2] != "-") { WriteCsv(args[2], args.Length > 1 && args[1] == "flee", floor); return; }
+        if (args.Length > 2 && args[2] != "-") { WriteCsv(args[2], args.Length > 1 && args[1] == "flee", floor, dirty); return; }
         bool flee = args.Length > 1 && args[1] == "flee";
         var rng = new Random(1);
         var sim = new CombatSimulation(42);
@@ -74,13 +75,13 @@ public static class SimCheck
         return choice;
     }
 
-    static void WriteCsv(string path, bool flee, float floor)
+    static void WriteCsv(string path, bool flee, float floor, bool dirty)
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
         var rng = new Random(7); var sim = new CombatSimulation(11);
-        sim.S.MassScalingFloor = floor; sim.S.StrengthScalingFloor = floor;
+        sim.S.MassScalingFloor = floor; sim.S.StrengthScalingFloor = floor; sim.S.DirtyTricksForAll = dirty;
         var sb = new System.Text.StringBuilder();
-        sb.Append("scenario,style,mass_ratio,strength_ratio,success,end_reason,time,health_left,attacker_damage,damage_taken,times_grabbed,takedowns,time_pinned_wall,first_release_time,decisive_technique");
+        sb.Append("scenario,style,mass_ratio,strength_ratio,success,end_reason,time,health_left,attacker_damage,damage_taken,times_grabbed,takedowns,time_pinned_wall,first_release_time,decisive_technique,dirty_tricks");
         foreach (var pre in new[] { "uses_", "hits_", "releases_", "knockdowns_", "wallturns_" })
             for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(pre).Append(TechniqueLibrary.All[i].Name);
         sb.Append('\n');
@@ -105,7 +106,7 @@ public static class SimCheck
                           .Append(sim.AttDamage.ToString("0.###", inv)).Append(',').Append(sim.DamageTakenTotal.ToString("0.###", inv)).Append(',')
                           .Append(sim.TimesGrabbed).Append(',').Append(sim.Takedowns).Append(',')
                           .Append(sim.TimePinnedToWall.ToString("0.##", inv)).Append(',').Append(sim.FirstReleaseTime.ToString("0.##", inv)).Append(',')
-                          .Append(sim.Success ? TechniqueLibrary.All[sim.DecisiveTechnique].Name : "");
+                          .Append(sim.Success ? TechniqueLibrary.All[sim.DecisiveTechnique].Name : "").Append(',').Append(sim.S.DirtyTricksForAll ? 1 : 0);
                         foreach (var arr in new[] { sim.TechniqueUses, sim.TechniqueHits, sim.TechniqueReleases, sim.TechniqueKnockdowns, sim.TechniqueWallTurns })
                             for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(arr[i]);
                         sb.Append('\n');

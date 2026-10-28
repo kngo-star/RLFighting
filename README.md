@@ -21,7 +21,8 @@ und ab welchem Grössenverhältnis ändert sich die beste Strategie?*
 Assets/SelfDefenseRL/
   Scripts/
     Enums.cs              Szenarien, Stile, Grifftypen, Bewegungen
-    TechniqueLibrary.cs   25 abstrakte Techniken, Stil-Tabelle (15 Kampfstile)
+    TechniqueLibrary.cs   29 abstrakte Techniken (inkl. Strassen-Tricks), Stil-Tabelle (15 Kampfstile)
+    CameraFollow.cs       Demo-Kamera: folgt seitlich, wackelt bei Treffern
     CombatSimulation.cs   Kampfmodell in reinem C# (Angreifer-KI, Griffe, Schaden, Flucht)
     DefenderAgent.cs      ML-Agents-Agent: Observations, Action Masking, Rewards, Statistik
     ArenaView.cs          Darstellung (Figuren, Posen, Farben, Griff-Linie, Text)
@@ -45,13 +46,15 @@ docs/MODELL.md                  alle Modellannahmen + Reward-Design
 | | |
 |---|---|
 | **Algorithmus** | PPO (ML-Agents), optional Curriculum Learning |
-| **Observations** | 46 Werte: Szenario, Stil, Masse/Kraft-Verhältnis, eigener Zustand, Grifftyp, Zustand des Angreifers, Positionen, Platz bis zur Wand, Zeit |
-| **Actions** | 2 diskrete Branches: Bewegung (5) und Technik (25) |
+| **Observations** | 47 Werte: Szenario, Stil, Masse/Kraft-Verhältnis, eigener Zustand, Grifftyp, Zustand des Angreifers, Positionen, Platz bis zur Wand, Zeit |
+| **Actions** | 2 diskrete Branches: Bewegung (5) und Technik (29) |
 | **Action Masking** | nur Techniken des gewählten Stils, die in der aktuellen Lage möglich sind |
 | **Ziel** | Griff lösen → mindestens 3 m Abstand → Flucht (+1) |
 | **Episode** | max. 30 s, Entscheidung alle 0.1 s |
 
 Szenarien: `WristGrab`, `PinnedToWall`, `BearHugBehind`, `ChokeFront`, `GroundMount`, `CorneredStrikes`
+Strassen-Tricks (Beissen, Augen stechen, Tritt in die Hoden, Kopfstoss) per `dirty_tricks: 1` für alle Stile.
+
 Stile (15): `Untrained` (Baseline), `Boxing`, `Kickboxing`, `MuayThai`, `Karate`, `Taekwondo`, `BJJ`, `JuJutsu`, `Judo`,
 `Wrestling`, `Aikido`, `KravMaga`, `WingTsun`, `MMA`, `Mixed` (alle Techniken). Welche Technik zu welchem Stil gehört:
 `TechniqueLibrary.StyleTable` bzw. Tabelle in `docs/MODELL.md`.
@@ -137,8 +140,13 @@ Die Figuren sind prozedural animiert (keine Motion-Capture-Animationen wie in EA
 - **Treffer-Physik:** Jeder Treffer gibt den Gelenken einen Impuls, eine gedämpfte Feder zieht sie zurück. Ein Schlag
   ins Gesicht lässt den Kopf zurückschnappen, ein Kniestoss klappt den Rumpf ein, ein Low Kick knickt das Bein ein.
   Einstellbar am Figur-Objekt (*Treffer-Physik*: Steifigkeit, Dämpfung, Stärke).
-- **Schadensanzeige:** Kopf, Rumpf und Beine verfärben sich mit zunehmendem Schaden dunkelrot, beim Treffer blitzt die
-  Zone kurz gelb auf. Über der Verteidigerin stehen ihre HP und die des Angreifers.
+- **Verletzungsanzeige pro Körperteil** (Kopf, Rumpf, Leiste, linker/rechter Arm, linkes/rechtes Bein):
+  **grün = unverletzt, gelb = angeschlagen, rot = schwer verletzt**; beim Treffer blitzt das Teil weiss auf.
+  Die Teamfarbe steckt in Stirnband, Armbändern und Bodenring (blau = Verteidigerin, rot = Angreifer,
+  violett = benommen, grau = am Boden, türkis = geflohen).
+- **Gelenke sichtbar:** Nacken, Schultern, Ellbogen, Handgelenke, Hüften, Knie und Knöchel sind als dunkle Kugeln zu sehen.
+- **Demo-Szene:** Kamera folgt seitlich aus der Nähe und wackelt bei harten Treffern. Im StatsHUD gibt es **Zeitlupe**
+  (1x, 0.5x, 0.25x, 0.1x), *Kamera folgt* und *Strassen-Tricks für alle*.
 - **Beinarbeit:** Beim Bewegen machen die Figuren Schritte. Wohin und wie weit sie gehen (Abstand halten, ausweichen,
   in Tritt-Distanz gehen), entscheidet der RL-Agent.
 - Die Kampflogik bleibt das Modell in `CombatSimulation.cs`. Volle Ragdoll-Physik (ArticulationBody), bei der der Agent

@@ -10,6 +10,9 @@ namespace SelfDefenseRL
     public class ArenaView : MonoBehaviour
     {
         public DefenderAgent agent;
+
+        /// <summary>Starker Treffer (für Kamera-Wackeln).</summary>
+        public static event System.Action<ArenaView, float> StrongHit;
         public HumanoidFigure defender;
         public HumanoidFigure attacker;
         public TextMesh label;
@@ -21,10 +24,10 @@ namespace SelfDefenseRL
         public float defenderScale = 0.92f;
 
         static readonly Color AttackerColor = new Color(0.8f, 0.18f, 0.18f);
-        static readonly Color StunColor = new Color(1f, 0.8f, 0.2f);
+        static readonly Color StunColor = new Color(0.85f, 0.3f, 1f);   // violett = benommen
         static readonly Color DownColor = new Color(0.45f, 0.45f, 0.45f);
         static readonly Color DefenderColor = new Color(0.2f, 0.45f, 0.95f);
-        static readonly Color SuccessColor = new Color(0.2f, 0.85f, 0.3f);
+        static readonly Color SuccessColor = new Color(0.3f, 0.9f, 1f); // türkis = geflohen
 
         float defenderYaw, attackerYaw;
 
@@ -71,18 +74,20 @@ namespace SelfDefenseRL
 
             // --- Farben
             bool down = s.AttDown > 0f;
-            attacker.SetBaseColor(down ? DownColor : (s.AttStun > 0f ? StunColor : AttackerColor));
-            defender.SetBaseColor(s.Done && s.Success ? SuccessColor : DefenderColor);
-            // Schaden pro Körperzone → Verfärbung (dunkelrot = viel Schaden)
-            defender.SetDamage(s.DefZoneDamage[0], s.DefZoneDamage[1], s.DefZoneDamage[2]);
-            attacker.SetDamage(s.AttZoneDamage[0], s.AttZoneDamage[1], s.AttZoneDamage[2]);
+            // Teamfarbe (Stirnband, Armbänder, Bodenring): blau/rot, gelb = benommen, grau = am Boden, grün = geflohen
+            attacker.SetTeamColor(down ? DownColor : (s.AttStun > 0f ? StunColor : AttackerColor));
+            defender.SetTeamColor(s.Done && s.Success ? SuccessColor : DefenderColor);
+            // Verletzung pro Körperteil: grün = unverletzt, gelb = angeschlagen, rot = schwer verletzt
+            defender.SetDamage(s.DefPartDamage);
+            attacker.SetDamage(s.AttPartDamage);
 
             // --- Treffer-Reaktionen (Kopf fliegt zurück, Rumpf klappt ein, Knie geben nach)
             for (int i = 0; i < s.Hits.Count; i++)
             {
                 var h = s.Hits[i];
                 var dir = transform.TransformDirection(new Vector3(h.DirX, 0f, h.DirZ));
-                (h.OnDefender ? defender : attacker).ApplyHit(h.Zone, h.Strength, dir);
+                (h.OnDefender ? defender : attacker).ApplyHit(h.Part, h.Strength, dir);
+                if (h.Strength > 0.45f) StrongHit?.Invoke(this, h.Strength);
             }
             s.Hits.Clear();
 
@@ -151,6 +156,10 @@ namespace SelfDefenseRL
             switch (name)
             {
                 case "PalmStrike":
+                case "Bite": return Pose.Bite;
+                case "Headbutt": return Pose.Headbutt;
+                case "EyePoke": return Pose.Poke;
+                case "GroinKick": return Pose.GroinKick;
                 case "JabCross":
                 case "ReversePunch":
                 case "FaceStrike":

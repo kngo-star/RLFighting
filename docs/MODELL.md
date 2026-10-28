@@ -44,8 +44,8 @@ und lässt sich dort leicht ändern. Diese Tabellen werden aus dem Code erzeugt.
 | ReversePunch | Karate-Fauststoss (Gyaku-Zuki) mit Hüfteinsatz | 0.85 | – | Schaden 0.12 |
 | HammerFist | Hammerfaust, auch von unten | 0.7 | – | Schaden 0.08 |
 | Elbow | Ellbogenschlag (auch nach hinten) | 0.7 | 0.5 | Schaden 0.15, Griff lösen 5% |
-| KneeGroin | Kniestoss (Leiste/Körper) | 0.15 | 0.3 | Schaden 0.30, Griff lösen 10% |
-| FaceStrike | Angriff auf Augen/Nase | 0.0 | 0.2 | Schaden 0.25, Griff lösen 15% |
+| KneeGroin | Kniestoss in Leiste/Körper | 0.15 | 0.3 | Schaden 0.30, Griff lösen 10% |
+| FaceStrike | Schlag auf Nase/Gesicht | 0.0 | 0.2 | Schaden 0.25, Griff lösen 15% |
 | KickKnee | Tritt gegen Knie/Schienbein, Fussstampfer | 0.4 | – | Schaden 0.15, Gleichgewicht 0.2 |
 | FrontKick | Frontaltritt / Teep (stösst weg) | 0.6 | – | Schaden 0.10, Abstand 0.9 m |
 | SideKick | Seitwärtstritt (Yop Chagi / Yoko-Geri) | 0.6 | – | Schaden 0.14, Gleichgewicht 0.2, Abstand 1.1 m |
@@ -61,6 +61,10 @@ und lässt sich dort leicht ändern. Diese Tabellen werden aus dem Code erzeugt.
 | BridgeRoll | Brücke und Rolle aus dem Mount (Upa) | 0.45 | – | Gleichgewicht 1.3, löst Mount |
 | HipEscape | Hüftflucht (Shrimp) | 0.3 | 0.4 | Griff lösen 35%, Abstand 0.5 m |
 | StandUp | Technisch aufstehen | – | – | aufstehen |
+| Bite | Beissen in Arm/Hand, die festhält | 0.0 | 0.15 | Schaden 0.06, Griff lösen 30% |
+| EyePoke | Finger in die Augen | 0.0 | 0.1 | Schaden 0.20, Griff lösen 20% |
+| GroinKick | Tritt in die Hoden | 0.1 | 0.3 | Schaden 0.30, Griff lösen 15% |
+| Headbutt | Kopfstoss (nach vorne oder hinten) | 0.5 | 0.5 | Schaden 0.15, Griff lösen 10% |
 | Guard | Deckung, Kopf schützen | – | – | Schaden ×0.4 |
 
 Jede Technik hat ausserdem Dauer, Trefferquote, Ausdauerkosten und **Exposure**
@@ -75,14 +79,18 @@ Jede Technik hat ausserdem Dauer, Trefferquote, Ausdauerkosten und **Exposure**
 | Karate | PalmStrike, ReversePunch, HammerFist, Elbow, KickKnee, FrontKick, SideKick |
 | Taekwondo | ReversePunch, KickKnee, FrontKick, SideKick, RoundKickThigh |
 | BJJ | GripReleaseThumb, ChokeDefense, DropWeight, Underhook, Frame, HipThrow, BridgeRoll, HipEscape |
-| JuJutsu | PalmStrike, Elbow, KneeGroin, KickKnee, GripReleaseThumb, WristLock, ChokeDefense, DropWeight, HipThrow, BridgeRoll |
+| JuJutsu | PalmStrike, Elbow, KneeGroin, KickKnee, GripReleaseThumb, WristLock, ChokeDefense, DropWeight, HipThrow, BridgeRoll, EyePoke, GroinKick |
 | Judo | GripReleaseThumb, ChokeDefense, DropWeight, Underhook, Frame, HipThrow, BridgeRoll |
 | Wrestling | GripReleaseThumb, DropWeight, Underhook, Frame, HipThrow, BridgeRoll, HipEscape |
 | Aikido | GripReleaseThumb, WristLock, HipThrow |
-| KravMaga | PalmStrike, JabCross, HammerFist, Elbow, KneeGroin, FaceStrike, KickKnee, FrontKick, GripReleaseThumb, ChokeDefense, DropWeight |
-| WingTsun | PalmStrike, JabCross, Elbow, FaceStrike, KickKnee, GripReleaseThumb |
+| KravMaga | PalmStrike, JabCross, HammerFist, Elbow, KneeGroin, FaceStrike, KickKnee, FrontKick, GripReleaseThumb, ChokeDefense, DropWeight, EyePoke, GroinKick, Headbutt |
+| WingTsun | PalmStrike, JabCross, Elbow, FaceStrike, KickKnee, GripReleaseThumb, EyePoke, GroinKick |
 | MMA | JabCross, Elbow, KickKnee, FrontKick, RoundKickThigh, GripReleaseThumb, ChokeDefense, DropWeight, Underhook, Frame, HipThrow, BridgeRoll, HipEscape |
 | Mixed | alle |
+
+**Strassen-Tricks** (Bite, EyePoke, GroinKick, Headbutt): Krav Maga, Wing Tsun und Ju-Jutsu haben einen Teil davon im
+Lehrplan. Mit `dirty_tricks: 1` (Config) bzw. dem Knopf *Strassen-Tricks für alle* im StatsHUD bekommt **jeder** Stil
+alle vier zusätzlich. So lässt sich vergleichen: Welcher Stil ist am besten *mit* und *ohne* schmutzige Tricks?
 
 Bewusste Entscheidungen, die im Bericht diskutiert werden sollten:
 - **MMA** ohne Leisten- und Augenangriffe (Sport-Regelwerk). Selbstverteidigungs-Systeme (Krav Maga, Wing Tsun, Ju-Jutsu) haben sie.
@@ -149,6 +157,16 @@ ein Vergleich: Training **mit** und **ohne** Shaping.
 |---|---|
 | Standard (`mass_scaling_floor = 0`) | WingTsun 88 %, KravMaga 86 %, JuJutsu 79 %, Mixed 65 %, MuayThai 63 %, Judo 55 %, MMA 49 %, Kickboxing 49 %, Karate 46 %, BJJ 45 %, Wrestling 45 %, Taekwondo 28 %, Boxing 20 %, Untrained 17 %, Aikido 15 % |
 | Keine Technik kraftunabhängig (`floor = 0.6`) | WingTsun 83 %, KravMaga 81 %, JuJutsu 74 %, MuayThai 61 %, Mixed 59 %, Judo 51 %, Kickboxing 47 %, MMA 46 %, Karate 45 %, Wrestling 43 %, BJJ 42 %, Taekwondo 26 %, Boxing 20 %, Untrained 17 %, Aikido 14 % |
+
+Mit und ohne Strassen-Tricks (Masse 1.0–1.8, Zufallspolitik *flee*):
+
+| Modus | Rangliste | entscheidende Techniken |
+|---|---|---|
+| ohne (`dirty_tricks: 0`) | WingTsun 92 %, KravMaga 89 %, JuJutsu 83 %, Mixed 74 %, MuayThai 63 %, Judo 54 %, MMA 49 %, Karate 48 %, Kickboxing 48 %, Wrestling 45 %, BJJ 44 %, Taekwondo 28 %, Boxing 20 %, Untrained 16 %, Aikido 15 % | |
+| mit (`dirty_tricks: 1`) | WingTsun 90 %, KravMaga 89 %, Kickboxing 89 %, Taekwondo 84 %, JuJutsu 81 %, MuayThai 81 %, Karate 80 %, Untrained 76 %, Boxing 74 %, Mixed 74 %, Aikido 71 %, Judo 71 %, Wrestling 68 %, MMA 67 %, BJJ 67 % | EyePoke 24 %, GroinKick 16 %, Bite 11 %, Headbutt 10 % |
+
+→ Im Modell gleichen Strassen-Tricks die Unterschiede zwischen den Stilen stark aus: auch „Untrained“ springt von 16 % auf 76 %.
+Das ist eine direkte Folge der Annahme, dass diese Tricks fast unabhängig von der Kraft wirken (`MassScaling ≈ 0`, hoher `StunFactor`).
 
 Beobachtungen:
 - Die Rangfolge bleibt bei der Sensitivitätsanalyse stabil, die Werte sinken nur leicht. Treiber ist eher der
