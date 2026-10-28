@@ -1,0 +1,34 @@
+# Basis-Training: ein Agent, alle Stile und Szenarien zufällig gemischt.
+# Start:  mlagents-learn config/selfdefense_ppo.yaml --run-id=mixed_v1
+behaviors:
+  SelfDefense:
+    trainer_type: ppo
+    hyperparameters:
+      batch_size: 512
+      buffer_size: 10240
+      learning_rate: 3.0e-4
+      beta: 5.0e-3          # Entropie-Bonus (Exploration)
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+    network_settings:
+      normalize: false
+      hidden_units: 256
+      num_layers: 2
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+    max_steps: 3000000
+    time_horizon: 128
+    summary_freq: 20000
+    checkpoint_interval: 500000
+    keep_checkpoints: 5
+
+environment_parameters:
+  style: -1          # -1 = zufällig, sonst 0=Untrained 1=Boxing 2=MuayThai 3=BJJ 4=Judo 5=KravMaga 6=WingTsun 7=Mixed
+  scenario: -1       # -1 = zufällig, sonst 0=WristGrab 1=PinnedToWall 2=BearHugBehind 3=ChokeFront 4=GroundMount 5=CorneredStrikes
+  mass_ratio: -1     # -1 = zufällig zwischen 1.0 und mass_ratio_max
+  mass_ratio_max: 1.8
+  strength_ratio: -1 # -1 = aus Masse abgeleitet: mass^1.3 * 1.1
