@@ -54,7 +54,7 @@ Stile: `Untrained` (Baseline), `Boxing`, `MuayThai`, `BJJ`, `Judo`, `KravMaga`, 
 
 ## Einrichtung (einmalig)
 
-1. **Unity 6** (6000.0 LTS oder neuer) über Unity Hub installieren.
+1. **Unity 6.6** (`6000.6.7f1`, steht in `ProjectSettings/ProjectVersion.txt`) über Unity Hub installieren. Alle im Team sollten dieselbe Version nutzen.
 2. Repo klonen:
    ```bash
    git clone https://github.com/kngo-star/RLFighting.git
@@ -62,7 +62,7 @@ Stile: `Untrained` (Baseline), `Boxing`, `MuayThai`, `BJJ`, `Judo`, `KravMaga`, 
 3. Unity Hub → **Add → Add project from repository** (oder nach dem Klonen **Add project from disk**).
    Fragt der Hub nach der Editor-Version, wähl deine installierte Unity-6-Version und bestätige das Upgrade.
    Unity erzeugt fehlende Projektdateien selbst und installiert das Package `com.unity.ml-agents`
-   (steht in `Packages/manifest.json`). Falls der Package Manager meckert:
+   4.0.0 (steht in `Packages/manifest.json`). Falls der Package Manager meckert, die Version dort löschen und neu installieren:
    *Window → Package Manager → + → Add package by name → `com.unity.ml-agents`*.
 4. **Python 3.10** einrichten (ML-Agents braucht genau diese Version):
    ```bash
