@@ -1,6 +1,7 @@
 using System.Text;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
+using Unity.MLAgents.Policies;
 using Unity.MLAgents.Sensors;
 using UnityEngine;
 
@@ -58,6 +59,33 @@ namespace SelfDefenseRL
 
         public CombatSimulation Sim { get; private set; }
         public float LastDecisionTime { get; private set; }
+
+        /// <summary>
+        /// Passt Behavior Parameters automatisch an, falls die Szene mit einer älteren Version gebaut wurde
+        /// (z. B. weniger Techniken). Muss vor der Initialisierung von ML-Agents passieren.
+        /// </summary>
+        protected override void Awake()
+        {
+            var bp = GetComponent<BehaviorParameters>();
+            if (bp != null)
+            {
+                var brain = bp.BrainParameters;
+                if (brain.VectorObservationSize != ObservationSize)
+                {
+                    Debug.LogWarning($"[SelfDefenseRL] Observation-Grösse {brain.VectorObservationSize} → {ObservationSize} korrigiert. Bitte Szene neu erstellen.");
+                    brain.VectorObservationSize = ObservationSize;
+                }
+                var spec = brain.ActionSpec;
+                bool ok = spec.NumDiscreteActions == 2 && spec.BranchSizes[0] == EnumCounts.MoveActions
+                          && spec.BranchSizes[1] == TechniqueLibrary.Count && spec.NumContinuousActions == 0;
+                if (!ok)
+                {
+                    Debug.LogWarning($"[SelfDefenseRL] Aktionen korrigiert auf ({EnumCounts.MoveActions}, {TechniqueLibrary.Count}). Bitte Szene neu erstellen.");
+                    brain.ActionSpec = ActionSpec.MakeDiscrete(EnumCounts.MoveActions, TechniqueLibrary.Count);
+                }
+            }
+            base.Awake();
+        }
 
         public override void Initialize()
         {
