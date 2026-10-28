@@ -143,3 +143,9 @@ Modellparametern (siehe `docs/MODELL.md`).
 - Angreifer ebenfalls per RL trainieren (Self-Play / MA-POCA) statt Skript
 - Vorphase mit Situationsbewusstsein, Abstand halten und lautem Widerstand
 - Physikbasierte Ragdolls (ArticulationBody) statt abstrakter Techniken
+
+## Hinweis: ML-Agents ist eingebettet
+
+`Packages/com.unity.ml-agents` ist eine Kopie von ML-Agents 4.0.0 (Release 23) mit einer Ein-Zeilen-Korrektur
+(`GetInstanceID()` → `GetHashCode()` in `Match3ActuatorComponent.cs`). Ab Unity 6.5 ist `GetInstanceID()` ein
+Kompilierfehler, ohne die Korrektur kompiliert das Projekt nicht. Python-Seite bleibt `mlagents==1.1.0` (gleiche Kommunikations-API 1.5.0).
