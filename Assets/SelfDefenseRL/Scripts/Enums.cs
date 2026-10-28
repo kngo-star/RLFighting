@@ -14,14 +14,21 @@ namespace SelfDefenseRL
     /// <summary>Kampfstil = erlaubte Teilmenge der Techniken (Action Masking).</summary>
     public enum Style
     {
-        Untrained = 0, // Baseline: nur natürliche Reaktionen
+        Untrained = 0,  // Baseline: nur natürliche Reaktionen
         Boxing = 1,
-        MuayThai = 2,
-        BJJ = 3,
-        Judo = 4,
-        KravMaga = 5,
-        WingTsun = 6,
-        Mixed = 7      // Alle Techniken
+        Kickboxing = 2,
+        MuayThai = 3,
+        Karate = 4,
+        Taekwondo = 5,
+        BJJ = 6,        // Brazilian Jiu-Jitsu
+        JuJutsu = 7,    // japanisches Ju-Jutsu (Selbstverteidigung: Hebel, Würfe, Schläge)
+        Judo = 8,
+        Wrestling = 9,  // Ringen
+        Aikido = 10,
+        KravMaga = 11,
+        WingTsun = 12,
+        MMA = 13,       // Mixed Martial Arts (Sport-Regelwerk: keine Leiste, keine Augen)
+        Mixed = 14      // Alle Techniken (Obergrenze)
     }
 
     /// <summary>Art des Griffs, den der Angreifer gerade hat.</summary>
@@ -48,7 +55,7 @@ namespace SelfDefenseRL
     public static class EnumCounts
     {
         public const int Scenarios = 6;
-        public const int Styles = 8;
+        public const int Styles = 15;
         public const int GripTypes = 6;
         public const int MoveActions = 5;
     }

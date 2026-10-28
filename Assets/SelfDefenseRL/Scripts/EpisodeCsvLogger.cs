@@ -41,6 +41,7 @@ namespace SelfDefenseRL
                     for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(",hits_").Append(TechniqueLibrary.All[i].Name);
                     for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(",releases_").Append(TechniqueLibrary.All[i].Name);
                     for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(",knockdowns_").Append(TechniqueLibrary.All[i].Name);
+                    for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(",wallturns_").Append(TechniqueLibrary.All[i].Name);
                     sb.Append('\n');
                 }
                 sb.Append(sim.Scenario).Append(',')
@@ -62,6 +63,7 @@ namespace SelfDefenseRL
                 for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(sim.TechniqueHits[i]);
                 for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(sim.TechniqueReleases[i]);
                 for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(sim.TechniqueKnockdowns[i]);
+                for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(sim.TechniqueWallTurns[i]);
                 sb.Append('\n');
                 File.AppendAllText(FilePath, sb.ToString());
             }

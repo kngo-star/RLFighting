@@ -13,11 +13,11 @@ namespace SelfDefenseRL
     /// Actions (diskret):
     ///   Branch 0: Bewegung (5)          – siehe MoveAction
     ///   Branch 1: Technik (TechniqueLibrary.Count) – per Action Masking auf Stil + Lage begrenzt
-    /// Observations: 39 Floats (siehe CollectObservations)
+    /// Observations: 46 Floats (siehe CollectObservations)
     /// </summary>
     public class DefenderAgent : Agent
     {
-        public const int ObservationSize = 39;
+        public const int ObservationSize = 46;
 
         [Header("Episode-Setup (-1 = aus Trainings-Config bzw. zufällig)")]
         [Tooltip("-1 = zufällig / Config, sonst Index aus Scenario")]
@@ -52,6 +52,7 @@ namespace SelfDefenseRL
         public float rewardIncapacitated = 0.3f;
         public float penaltyDamagePerUnit = 0.5f;
         public float penaltyPositionWorsened = 0.3f;
+        public float rewardPositionImproved = 0.1f;
         public float penaltyFail = 1.0f;
         public float penaltyPerDecision = 0.001f;
 
@@ -67,6 +68,8 @@ namespace SelfDefenseRL
         public override void OnEpisodeBegin()
         {
             var p = Academy.Instance.EnvironmentParameters;
+            Sim.S.MassScalingFloor = p.GetWithDefault("mass_scaling_floor", 0f);
+            Sim.S.StrengthScalingFloor = p.GetWithDefault("strength_scaling_floor", 0f);
 
             if (evaluationSweep)
             {
@@ -114,7 +117,7 @@ namespace SelfDefenseRL
             float h = s.S.ArenaHalfSize;
 
             sensor.AddOneHotObservation((int)s.Scenario, EnumCounts.Scenarios);          // 6
-            sensor.AddOneHotObservation((int)s.Style, EnumCounts.Styles);                // 8
+            sensor.AddOneHotObservation((int)s.Style, EnumCounts.Styles);                // 15
 
             sensor.AddObservation(s.MassRatio - 1f);                                     // 1
             sensor.AddObservation((s.StrengthRatio - 1f) / 1.5f);                         // 1
@@ -142,7 +145,7 @@ namespace SelfDefenseRL
             sensor.AddObservation(Mathf.Clamp01(s.SpaceBehind() / (2f * h)));             // 1
 
             sensor.AddObservation(Mathf.Clamp01(s.Time / s.S.MaxEpisodeTime));            // 1
-            // Summe: 39
+            // Summe: 6 + 15 + 25 = 46
         }
 
         // ================================================================== Action Masking
@@ -175,6 +178,7 @@ namespace SelfDefenseRL
             r += rewardKnockdown * e.Knockdowns;
             if (e.Incapacitated) r += rewardIncapacitated;
             r -= penaltyPositionWorsened * e.PositionWorsened;
+            r += rewardPositionImproved * e.PositionImproved;
             if (e.Success) r += rewardEscape;
             if (e.Failed) r -= penaltyFail;
             AddReward(r);

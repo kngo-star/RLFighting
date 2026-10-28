@@ -20,15 +20,18 @@ behaviors:
       extrinsic:
         gamma: 0.99
         strength: 1.0
-    max_steps: 3000000
+    max_steps: 6000000
     time_horizon: 128
     summary_freq: 20000
     checkpoint_interval: 500000
     keep_checkpoints: 5
 
 environment_parameters:
-  style: -1          # -1 = zufällig, sonst 0=Untrained 1=Boxing 2=MuayThai 3=BJJ 4=Judo 5=KravMaga 6=WingTsun 7=Mixed
+  style: -1          # -1 = zufällig, sonst 0=Untrained 1=Boxing 2=Kickboxing 3=MuayThai 4=Karate 5=Taekwondo 6=BJJ
+                     #   7=JuJutsu 8=Judo 9=Wrestling 10=Aikido 11=KravMaga 12=WingTsun 13=MMA 14=Mixed (alle Techniken)
   scenario: -1       # -1 = zufällig, sonst 0=WristGrab 1=PinnedToWall 2=BearHugBehind 3=ChokeFront 4=GroundMount 5=CorneredStrikes
   mass_ratio: -1     # -1 = zufällig zwischen 1.0 und mass_ratio_max
   mass_ratio_max: 1.8
   strength_ratio: -1 # -1 = aus Masse abgeleitet: mass^1.3 * 1.1
+  mass_scaling_floor: 0     # Sensitivitätsanalyse: z. B. 0.6 → keine Technik wirkt unabhängig von der Kraft
+  strength_scaling_floor: 0

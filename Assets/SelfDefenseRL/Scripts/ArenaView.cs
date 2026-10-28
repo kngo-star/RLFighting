@@ -155,16 +155,21 @@ namespace SelfDefenseRL
             {
                 case "PalmStrike":
                 case "JabCross":
+                case "ReversePunch":
                 case "FaceStrike":
                 case "HammerFist": return Pose.Punch;
                 case "Elbow": return Pose.Elbow;
                 case "KneeGroin": return Pose.Knee;
                 case "KickKnee":
-                case "RoundKickThigh": return Pose.Kick;
+                case "RoundKickThigh":
+                case "FrontKick":
+                case "SideKick": return Pose.Kick;
                 case "Frame":
                 case "PushOff": return Pose.Push;
                 case "GripReleaseThumb":
-                case "ChokeDefense": return Pose.Release;
+                case "ChokeDefense":
+                case "WristLock": return Pose.Release;
+                case "Underhook": return Pose.Throw;
                 case "DropWeight": return Pose.DropWeight;
                 case "HipThrow": return Pose.Throw;
                 case "Guard": return Pose.Guard;

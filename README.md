@@ -21,7 +21,7 @@ und ab welchem Grössenverhältnis ändert sich die beste Strategie?*
 Assets/SelfDefenseRL/
   Scripts/
     Enums.cs              Szenarien, Stile, Grifftypen, Bewegungen
-    TechniqueLibrary.cs   20 abstrakte Techniken mit Parametern + Stil-Zuordnung
+    TechniqueLibrary.cs   25 abstrakte Techniken, Stil-Tabelle (15 Kampfstile)
     CombatSimulation.cs   Kampfmodell in reinem C# (Angreifer-KI, Griffe, Schaden, Flucht)
     DefenderAgent.cs      ML-Agents-Agent: Observations, Action Masking, Rewards, Statistik
     ArenaView.cs          Darstellung (Figuren, Posen, Farben, Griff-Linie, Text)
@@ -45,14 +45,16 @@ docs/MODELL.md                  alle Modellannahmen + Reward-Design
 | | |
 |---|---|
 | **Algorithmus** | PPO (ML-Agents), optional Curriculum Learning |
-| **Observations** | 39 Werte: Szenario, Stil, Masse/Kraft-Verhältnis, eigener Zustand, Grifftyp, Zustand des Angreifers, Positionen, Platz bis zur Wand, Zeit |
-| **Actions** | 2 diskrete Branches: Bewegung (5) und Technik (20) |
+| **Observations** | 46 Werte: Szenario, Stil, Masse/Kraft-Verhältnis, eigener Zustand, Grifftyp, Zustand des Angreifers, Positionen, Platz bis zur Wand, Zeit |
+| **Actions** | 2 diskrete Branches: Bewegung (5) und Technik (25) |
 | **Action Masking** | nur Techniken des gewählten Stils, die in der aktuellen Lage möglich sind |
 | **Ziel** | Griff lösen → mindestens 3 m Abstand → Flucht (+1) |
 | **Episode** | max. 30 s, Entscheidung alle 0.1 s |
 
 Szenarien: `WristGrab`, `PinnedToWall`, `BearHugBehind`, `ChokeFront`, `GroundMount`, `CorneredStrikes`
-Stile: `Untrained` (Baseline), `Boxing`, `MuayThai`, `BJJ`, `Judo`, `KravMaga`, `WingTsun`, `Mixed`
+Stile (15): `Untrained` (Baseline), `Boxing`, `Kickboxing`, `MuayThai`, `Karate`, `Taekwondo`, `BJJ`, `JuJutsu`, `Judo`,
+`Wrestling`, `Aikido`, `KravMaga`, `WingTsun`, `MMA`, `Mixed` (alle Techniken). Welche Technik zu welchem Stil gehört:
+`TechniqueLibrary.StyleTable` bzw. Tabelle in `docs/MODELL.md`.
 
 ## Einrichtung (einmalig)
 
@@ -91,28 +93,27 @@ Ohne Training kannst du die regelbasierte Baseline anschauen: Defender auswähle
 
 ## Training
 
-Im Projektordner (venv aktiv):
+Im Projektordner (venv aktiv), dann jeweils in Unity **Play** drücken, sobald im Terminal
+„Start training by pressing the Play button“ erscheint:
 
 ```bash
-# 1) Alles gemischt
-mlagents-learn config/selfdefense_ppo.yaml --run-id=mixed_v1
-# → wenn "Start training by pressing the Play button" erscheint: in Unity Play drücken
+# EMPFOHLEN: ein Agent für alle 15 Stile (Stil steht in der Observation, gleiches Netz → fairer Vergleich)
+mlagents-learn config/selfdefense_ppo.yaml --run-id=alle_stile_v1
 
-# 2) Curriculum (Gegner wächst mit dem Können)
+# Alternative: Curriculum (Gegner wächst mit dem Können)
 mlagents-learn config/selfdefense_curriculum.yaml --run-id=curriculum_v1
 
-# 3) Stil-Vergleich: ein Lauf pro Stil
-mlagents-learn config/styles/style_BJJ.yaml --run-id=style_BJJ
-mlagents-learn config/styles/style_KravMaga.yaml --run-id=style_KravMaga
-# ... usw.
+# Optional: ein eigener Agent pro Stil (15 Läufe, dauert lange)
+mlagents-learn config/styles/style_MMA.yaml --run-id=style_MMA
+
+# Sensitivitätsanalyse: in der Config mass_scaling_floor: 0.6 setzen und neu trainieren/auswerten
 
 # Fortschritt ansehen
 tensorboard --logdir results
 ```
 
-Unterbrochenes Training fortsetzen: gleicher Befehl mit `--resume`.
-In TensorBoard gibt es eigene Kurven unter **SelfDefense/** (Erfolgsrate pro Szenario und Stil,
-Zeit bis zur Flucht, Technik-Nutzung).
+Unterbrochenes Training fortsetzen: gleicher Befehl mit `--resume`. Schneller trainieren: Trainings-Szene als
+Build exportieren und mit `--env=<pfad> --num-envs=4 --no-graphics` starten.
 
 ## Auswertung: Wie findet man heraus, welche Technik am besten ist?
 
@@ -140,6 +141,9 @@ Steigt die Erfolgskurve, lernt der Agent.
    ```
    → `analysis/output/`: Heatmaps (Stil × Szenario, entscheidende Techniken, Wirksamkeit pro Technik),
    Kurve über das Grössenverhältnis, `technik_tabelle.csv` und ein automatischer **`bericht.md`**.
+
+**Welcher Kampfstil ist am effektivsten?** → Rangliste im StatsHUD (Tab *Übersicht*) bzw. Abschnitt 1 und 2 im `bericht.md`.
+Die Antwort hat zwei Teile: *im Durchschnitt* (Rangliste) und *gegen sehr viel Grössere* (wer verliert am wenigsten von 1.0x zu 1.8x).
 
 Eine Technik ist „am besten“, wenn sie oft **entscheidend** ist *und* eine hohe **löst-Griff-Rate** hat.
 Immer mit der Baseline (ohne RL) vergleichen und die Modellannahmen in `docs/MODELL.md` mitdiskutieren.

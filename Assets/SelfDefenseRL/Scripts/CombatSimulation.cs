@@ -25,6 +25,10 @@ namespace SelfDefenseRL
             public float AttackerBaseHitChance = 0.55f;
             public float ChokeDamagePerSecond = 0.035f;
             public float TakedownChance = 0.12f;
+            // Sensitivitätsanalyse: Untergrenzen für MassScaling/StrengthScaling aller Techniken.
+            // 0 = Werte wie in TechniqueLibrary. 0.6 = "keine Technik ist unabhängig von Kraft".
+            public float MassScalingFloor = 0f;
+            public float StrengthScalingFloor = 0f;
             public float WallDriveSpeed = 0.6f; // m/s, mit der der Angreifer im Clinch zur Wand drückt
         }
 
@@ -70,6 +74,7 @@ namespace SelfDefenseRL
         public int[] TechniqueHits = new int[TechniqueLibrary.Count];
         public int[] TechniqueReleases = new int[TechniqueLibrary.Count];   // wie oft diese Technik einen Griff gelöst hat
         public int[] TechniqueKnockdowns = new int[TechniqueLibrary.Count]; // wie oft sie den Angreifer zu Boden gebracht hat
+        public int[] TechniqueWallTurns = new int[TechniqueLibrary.Count];  // wie oft sie die Position an der Wand gedreht hat
 
         // Auswertung pro Episode
         public int DecisiveTechnique;      // letzte wirksame Technik vor der Flucht (0 = nur Bewegung)
@@ -96,6 +101,7 @@ namespace SelfDefenseRL
             public int Knockdowns;
             public bool Incapacitated;
             public int PositionWorsened;
+            public int PositionImproved;
             public bool Success;
             public bool Failed;
         }
@@ -134,6 +140,7 @@ namespace SelfDefenseRL
             Array.Clear(TechniqueHits, 0, TechniqueHits.Length);
             Array.Clear(TechniqueReleases, 0, TechniqueReleases.Length);
             Array.Clear(TechniqueKnockdowns, 0, TechniqueKnockdowns.Length);
+            Array.Clear(TechniqueWallTurns, 0, TechniqueWallTurns.Length);
             DecisiveTechnique = 0; DamageTakenTotal = 0f; TimesGrabbed = 0; Takedowns = 0;
             TimePinnedToWall = 0f; FirstReleaseTime = -1f;
             resolvingTechnique = 0; lastEffectiveTechnique = 0;
@@ -340,7 +347,7 @@ namespace SelfDefenseRL
             if ((t.Contexts & ctx) == 0) return; // Lage hat sich geändert → verpufft
 
             float eff = 0.5f + 0.5f * DefStamina;
-            float power = (float)Math.Pow(1.0 / MassRatio, t.MassScaling);
+            float power = (float)Math.Pow(1.0 / MassRatio, Math.Max(t.MassScaling, S.MassScalingFloor));
             bool stunned = AttStun > 0f || AttDown > 0f;
 
             if (t.IsStandUp) { DefGrounded = false; return; }
@@ -391,9 +398,16 @@ namespace SelfDefenseRL
             if (hit && t.GripBreak > 0f && Grip != GripType.None)
             {
                 float chance = t.GripBreak
-                               * (float)Math.Pow(1.0 / StrengthRatio, t.StrengthScaling)
+                               * (float)Math.Pow(1.0 / StrengthRatio, Math.Max(t.StrengthScaling, S.StrengthScalingFloor))
                                * (1.5f - GripStrength) * eff * (stunned ? 1.8f : 1f);
                 if (R() < Math.Min(0.95f, chance)) ReleaseGrip();
+            }
+
+            // Unterhaken: Position drehen, danach steht der Angreifer an der Wand
+            if (t.TurnsOffWall && (Grip == GripType.FrontPin || Grip == GripType.Choke))
+            {
+                float chance = t.Accuracy * (float)Math.Pow(1.0 / StrengthRatio, 0.5) * eff * (1.3f - 0.5f * GripStrength);
+                if (R() < Math.Min(0.9f, chance)) TurnOffWall(index);
             }
 
             // Mount auflösen
@@ -421,6 +435,20 @@ namespace SelfDefenseRL
             AttStun = Math.Max(AttStun, S.ReleaseRecovery); // kurz aus dem Gleichgewicht
             // Angreifer kommt nicht direkt auf der Verteidigerin zu stehen
             if (Distance < 0.6f || wasMount) PushAttacker(0.7f);
+        }
+
+        void TurnOffWall(int index)
+        {
+            float tx = DX, tz = DZ;
+            DX = AX; DZ = AZ;
+            AX = tx; AZ = tz;
+            gripDirX = -gripDirX; gripDirZ = -gripDirZ;
+            ClampToArena(ref DX, ref DZ, DefRadius);
+            ClampToArena(ref AX, ref AZ, AttRadius);
+            SetGrip(GripType.Wrist, GripStrength * 0.7f); // Kontrolle nur noch am Arm
+            TechniqueWallTurns[index]++;
+            lastEffectiveTechnique = index;
+            ev.PositionImproved++;
         }
 
         void KnockDownAttacker()

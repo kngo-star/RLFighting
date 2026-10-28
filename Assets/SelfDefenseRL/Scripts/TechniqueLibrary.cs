@@ -21,21 +21,6 @@ namespace SelfDefenseRL
         All = AllStanding | GroundMount | GroundFree
     }
 
-    [Flags]
-    public enum StyleMask
-    {
-        None = 0,
-        Untrained = 1 << Style.Untrained,
-        Boxing = 1 << Style.Boxing,
-        MuayThai = 1 << Style.MuayThai,
-        BJJ = 1 << Style.BJJ,
-        Judo = 1 << Style.Judo,
-        KravMaga = 1 << Style.KravMaga,
-        WingTsun = 1 << Style.WingTsun,
-        Mixed = 1 << Style.Mixed,
-        All = Untrained | Boxing | MuayThai | BJJ | Judo | KravMaga | WingTsun | Mixed
-    }
-
     /// <summary>
     /// Abstrakte Technik. ALLE Zahlen sind Modellannahmen und sollten im Bericht
     /// begründet und per Sensitivitätsanalyse geprüft werden (siehe docs/MODELL.md).
@@ -43,7 +28,8 @@ namespace SelfDefenseRL
     public class Technique
     {
         public string Name;
-        public StyleMask Styles;      // Mixed wird automatisch ergänzt
+        public string Description;    // kurze Erklärung (Deutsch)
+        public int Styles;            // Bitmaske über Style (wird aus StyleTable berechnet)
         public Context Contexts;      // wo die Technik möglich ist
         public float MaxRange = 1.2f; // nur relevant im Kontext StandingFree (Meter)
         public float MinRange = 0f;
@@ -53,7 +39,7 @@ namespace SelfDefenseRL
 
         public float Damage;          // Schaden am Angreifer (0..1 Skala)
         public float MassScaling;     // 0 = unabhängig von Masse, 1 = proportional zu (1/massRatio)
-        public float StunFactor;      // Sekunden Benommenheit pro Schadenseinheit*10
+        public float StunFactor;      // Benommenheit: Sekunden = StunFactor × Schaden × 6
 
         public float GripBreak;       // Basiswahrscheinlichkeit, den Griff zu lösen
         public float StrengthScaling; // 0 = Hebel/Technik, 1 = reine Kraft gegen Kraft
@@ -66,10 +52,38 @@ namespace SelfDefenseRL
         public bool IsGuard;          // Deckung: reduziert erlittenen Schaden
         public bool IsStandUp;        // Aufstehen aus Bodenlage
         public bool RemovesMount;     // kann die Mount-Position auflösen (Bridge & Roll)
+        public bool TurnsOffWall;     // dreht die Position: danach steht der Angreifer an der Wand (Underhook)
     }
 
     public static class TechniqueLibrary
     {
+        /// <summary>Techniken, die jeder Mensch ohne Training hat (gehören zu jedem Stil).</summary>
+        public static readonly string[] Universal = { "None", "Guard", "PushOff", "StandUp" };
+
+        /// <summary>
+        /// Welcher Kampfstil welche Techniken trainiert. Das ist die zentrale Tabelle für den Stil-Vergleich:
+        /// Jeder Stil bekommt die Universal-Techniken plus die hier genannten.
+        /// </summary>
+        public static readonly Dictionary<Style, string[]> StyleTable = new Dictionary<Style, string[]>
+        {
+            { Style.Untrained,  new[] { "HammerFist" } },
+            { Style.Boxing,     new[] { "JabCross", "Frame" } },
+            { Style.Kickboxing, new[] { "JabCross", "FrontKick", "RoundKickThigh", "KneeGroin", "KickKnee" } },
+            { Style.MuayThai,   new[] { "JabCross", "Elbow", "KneeGroin", "RoundKickThigh", "FrontKick", "Frame", "Underhook" } },
+            { Style.Karate,     new[] { "ReversePunch", "PalmStrike", "HammerFist", "Elbow", "FrontKick", "SideKick", "KickKnee" } },
+            { Style.Taekwondo,  new[] { "ReversePunch", "FrontKick", "SideKick", "RoundKickThigh", "KickKnee" } },
+            { Style.BJJ,        new[] { "Frame", "Underhook", "GripReleaseThumb", "ChokeDefense", "DropWeight", "HipThrow", "BridgeRoll", "HipEscape" } },
+            { Style.JuJutsu,    new[] { "WristLock", "GripReleaseThumb", "ChokeDefense", "DropWeight", "HipThrow", "PalmStrike", "Elbow", "KneeGroin", "KickKnee", "BridgeRoll" } },
+            { Style.Judo,       new[] { "HipThrow", "Underhook", "GripReleaseThumb", "ChokeDefense", "DropWeight", "Frame", "BridgeRoll" } },
+            { Style.Wrestling,  new[] { "Underhook", "DropWeight", "Frame", "GripReleaseThumb", "HipThrow", "BridgeRoll", "HipEscape" } },
+            { Style.Aikido,     new[] { "WristLock", "GripReleaseThumb", "HipThrow" } },
+            { Style.KravMaga,   new[] { "PalmStrike", "JabCross", "HammerFist", "Elbow", "KneeGroin", "FaceStrike", "KickKnee", "FrontKick", "GripReleaseThumb", "ChokeDefense", "DropWeight" } },
+            { Style.WingTsun,   new[] { "PalmStrike", "JabCross", "Elbow", "FaceStrike", "KickKnee", "GripReleaseThumb" } },
+            { Style.MMA,        new[] { "JabCross", "Elbow", "RoundKickThigh", "FrontKick", "KickKnee", "Frame", "Underhook", "DropWeight", "HipThrow", "BridgeRoll", "HipEscape", "GripReleaseThumb", "ChokeDefense" } },
+            // Style.Mixed = alle Techniken (wird automatisch gesetzt)
+        };
+
+        // Muss NACH StyleTable stehen (statische Felder werden in Reihenfolge initialisiert)
         public static readonly List<Technique> All = Build();
         public static int Count => All.Count;
 
@@ -78,33 +92,40 @@ namespace SelfDefenseRL
             var t = new List<Technique>();
 
             // 0 – Nichts tun (immer erlaubt, damit die Maske nie leer ist)
-            t.Add(new Technique { Name = "None", Styles = StyleMask.All, Contexts = Context.All, Duration = 0f, StaminaCost = 0f });
+            t.Add(new Technique { Name = "None", Description = "nichts tun", Contexts = Context.All, Duration = 0f, StaminaCost = 0f });
 
-            // ---- Schläge mit grober Motorik ----
+            // ---- Schläge ----
             t.Add(new Technique
             {
-                Name = "PalmStrike", Styles = StyleMask.KravMaga | StyleMask.WingTsun,
+                Name = "PalmStrike", Description = "Handballenstoss ins Gesicht",
                 Contexts = Context.StandingFree | Context.Wrist | Context.FrontPin | Context.Choke,
                 Duration = 0.35f, Accuracy = 0.7f, Damage = 0.12f, MassScaling = 0.8f, StunFactor = 0.5f,
                 Push = 0.2f, Exposure = 0.2f, StaminaCost = 0.04f
             });
             t.Add(new Technique
             {
-                Name = "JabCross", Styles = StyleMask.Boxing | StyleMask.MuayThai | StyleMask.KravMaga,
+                Name = "JabCross", Description = "Gerade Schläge (Jab, Cross)",
                 Contexts = Context.StandingFree | Context.FrontPin | Context.Choke,
                 Duration = 0.25f, Accuracy = 0.7f, Damage = 0.10f, MassScaling = 0.9f, StunFactor = 0.4f,
                 Exposure = 0.15f, StaminaCost = 0.04f
             });
             t.Add(new Technique
             {
-                Name = "HammerFist", Styles = StyleMask.Untrained | StyleMask.KravMaga,
+                Name = "ReversePunch", Description = "Karate-Fauststoss (Gyaku-Zuki) mit Hüfteinsatz",
+                Contexts = Context.StandingFree | Context.Wrist | Context.FrontPin | Context.Choke,
+                Duration = 0.3f, Accuracy = 0.7f, Damage = 0.12f, MassScaling = 0.85f, StunFactor = 0.45f,
+                Exposure = 0.15f, StaminaCost = 0.04f
+            });
+            t.Add(new Technique
+            {
+                Name = "HammerFist", Description = "Hammerfaust, auch von unten",
                 Contexts = Context.AllStanding | Context.GroundMount,
                 Duration = 0.3f, Accuracy = 0.7f, Damage = 0.08f, MassScaling = 0.7f, StunFactor = 0.3f,
                 Exposure = 0.15f, StaminaCost = 0.04f
             });
             t.Add(new Technique
             {
-                Name = "Elbow", Styles = StyleMask.KravMaga | StyleMask.MuayThai | StyleMask.WingTsun,
+                Name = "Elbow", Description = "Ellbogenschlag (auch nach hinten)",
                 Contexts = Context.Wrist | Context.FrontPin | Context.Choke | Context.BearHug,
                 Duration = 0.3f, Accuracy = 0.75f, Damage = 0.15f, MassScaling = 0.7f, StunFactor = 0.6f,
                 GripBreak = 0.05f, StrengthScaling = 0.5f, Exposure = 0.1f, StaminaCost = 0.05f
@@ -113,21 +134,23 @@ namespace SelfDefenseRL
             // ---- Ziele mit hoher Wirkung (wenig abhängig von der eigenen Masse) ----
             t.Add(new Technique
             {
-                Name = "KneeGroin", Styles = StyleMask.KravMaga | StyleMask.MuayThai,
+                Name = "KneeGroin", Description = "Kniestoss (Leiste/Körper)",
                 Contexts = Context.Wrist | Context.FrontPin | Context.Choke,
                 Duration = 0.4f, Accuracy = 0.55f, Damage = 0.30f, MassScaling = 0.15f, StunFactor = 1.5f,
                 GripBreak = 0.10f, StrengthScaling = 0.3f, Exposure = 0.15f, StaminaCost = 0.05f
             });
             t.Add(new Technique
             {
-                Name = "FaceStrike", Styles = StyleMask.KravMaga | StyleMask.WingTsun,
+                Name = "FaceStrike", Description = "Angriff auf Augen/Nase",
                 Contexts = Context.StandingFree | Context.Wrist | Context.FrontPin | Context.Choke | Context.GroundMount,
                 Duration = 0.3f, Accuracy = 0.45f, Damage = 0.25f, MassScaling = 0f, StunFactor = 1.2f,
                 GripBreak = 0.15f, StrengthScaling = 0.2f, Exposure = 0.25f, StaminaCost = 0.04f
             });
+
+            // ---- Tritte ----
             t.Add(new Technique
             {
-                Name = "KickKnee", Styles = StyleMask.KravMaga | StyleMask.WingTsun | StyleMask.MuayThai,
+                Name = "KickKnee", Description = "Tritt gegen Knie/Schienbein, Fussstampfer",
                 Contexts = Context.StandingFree | Context.Wrist | Context.FrontPin | Context.BearHug | Context.Choke,
                 MinRange = 0.4f, MaxRange = 1.4f,
                 Duration = 0.4f, Accuracy = 0.6f, Damage = 0.15f, MassScaling = 0.4f, StunFactor = 0.6f,
@@ -135,52 +158,80 @@ namespace SelfDefenseRL
             });
             t.Add(new Technique
             {
-                Name = "RoundKickThigh", Styles = StyleMask.MuayThai,
+                Name = "FrontKick", Description = "Frontaltritt / Teep (stösst weg)",
+                Contexts = Context.StandingFree | Context.Wrist, MinRange = 0.7f, MaxRange = 1.5f,
+                Duration = 0.4f, Accuracy = 0.65f, Damage = 0.10f, MassScaling = 0.6f, StunFactor = 0.4f,
+                Push = 0.9f, Exposure = 0.25f, StaminaCost = 0.06f
+            });
+            t.Add(new Technique
+            {
+                Name = "SideKick", Description = "Seitwärtstritt (Yop Chagi / Yoko-Geri)",
+                Contexts = Context.StandingFree, MinRange = 0.9f, MaxRange = 1.8f,
+                Duration = 0.5f, Accuracy = 0.55f, Damage = 0.14f, MassScaling = 0.6f, StunFactor = 0.5f,
+                Push = 1.1f, Balance = 0.2f, Exposure = 0.35f, StaminaCost = 0.08f
+            });
+            t.Add(new Technique
+            {
+                Name = "RoundKickThigh", Description = "Halbkreistritt auf den Oberschenkel (Low Kick)",
                 Contexts = Context.StandingFree, MinRange = 0.9f, MaxRange = 1.8f,
                 Duration = 0.5f, Accuracy = 0.6f, Damage = 0.15f, MassScaling = 0.7f, StunFactor = 0.4f,
                 Balance = 0.15f, Exposure = 0.35f, StaminaCost = 0.07f
             });
 
-            // ---- Befreiungen (Hebel statt Kraft) ----
+            // ---- Befreiungen und Hebel ----
             t.Add(new Technique
             {
-                Name = "GripReleaseThumb", Styles = StyleMask.KravMaga | StyleMask.BJJ | StyleMask.Judo | StyleMask.WingTsun,
+                Name = "GripReleaseThumb", Description = "Griff am Daumen lösen",
                 Contexts = Context.Wrist,
                 Duration = 0.4f, GripBreak = 0.55f, StrengthScaling = 0.3f, Exposure = 0.1f, StaminaCost = 0.04f
             });
             t.Add(new Technique
             {
-                Name = "ChokeDefense", Styles = StyleMask.KravMaga | StyleMask.BJJ | StyleMask.Judo,
+                Name = "WristLock", Description = "Handgelenkhebel mit Wurf (Kote-Gaeshi)",
+                Contexts = Context.Wrist | Context.FrontPin | Context.Choke,
+                Duration = 0.5f, Accuracy = 0.6f, GripBreak = 0.5f, StrengthScaling = 0.2f,
+                Balance = 0.35f, MassScaling = 0.3f, Exposure = 0.15f, StaminaCost = 0.06f
+            });
+            t.Add(new Technique
+            {
+                Name = "ChokeDefense", Description = "Würgegriff aufreissen und wegdrehen",
                 Contexts = Context.Choke,
                 Duration = 0.45f, GripBreak = 0.45f, StrengthScaling = 0.5f, Exposure = 0.1f, StaminaCost = 0.06f
             });
             t.Add(new Technique
             {
-                Name = "DropWeight", Styles = StyleMask.BJJ | StyleMask.Judo | StyleMask.KravMaga,
+                Name = "DropWeight", Description = "Gewicht senken, Hüfte raus",
                 Contexts = Context.BearHug,
                 Duration = 0.5f, GripBreak = 0.35f, StrengthScaling = 0.35f, Balance = 0.1f, StaminaCost = 0.06f
             });
 
-            // ---- Rahmen und Distanz ----
+            // ---- Clinch, Rahmen und Distanz ----
             t.Add(new Technique
             {
-                Name = "Frame", Styles = StyleMask.BJJ | StyleMask.MuayThai | StyleMask.Judo,
+                Name = "Underhook", Description = "Unterhaken und von der Wand wegdrehen",
+                Contexts = Context.FrontPin | Context.Choke,
+                Duration = 0.6f, Accuracy = 0.55f, GripBreak = 0.15f, StrengthScaling = 0.5f,
+                Exposure = 0.1f, StaminaCost = 0.08f, TurnsOffWall = true
+            });
+            t.Add(new Technique
+            {
+                Name = "Frame", Description = "Unterarm-Rahmen gegen Hals/Schulter",
                 Contexts = Context.StandingFree | Context.FrontPin | Context.Choke | Context.GroundMount,
                 Duration = 0.4f, GripBreak = 0.2f, StrengthScaling = 0.6f, Push = 0.6f, MassScaling = 0.5f,
                 Exposure = 0.05f, StaminaCost = 0.04f
             });
             t.Add(new Technique
             {
-                Name = "PushOff", Styles = StyleMask.All,
+                Name = "PushOff", Description = "Wegstossen (ohne Training)",
                 Contexts = Context.StandingFree | Context.FrontPin | Context.Wrist,
                 Duration = 0.4f, GripBreak = 0.25f, StrengthScaling = 0.8f, Push = 1.2f, MassScaling = 0.8f,
                 Exposure = 0.15f, StaminaCost = 0.06f
             });
 
-            // ---- Würfe und Gleichgewicht ----
+            // ---- Würfe ----
             t.Add(new Technique
             {
-                Name = "HipThrow", Styles = StyleMask.Judo | StyleMask.BJJ,
+                Name = "HipThrow", Description = "Hüftwurf (O-Goshi)",
                 Contexts = Context.FrontPin | Context.Wrist | Context.StandingFree, MaxRange = 0.9f,
                 Duration = 0.7f, Accuracy = 0.5f, Balance = 1.2f, MassScaling = 0.5f,
                 Exposure = 0.4f, StaminaCost = 0.12f
@@ -189,36 +240,55 @@ namespace SelfDefenseRL
             // ---- Boden ----
             t.Add(new Technique
             {
-                Name = "BridgeRoll", Styles = StyleMask.BJJ | StyleMask.Judo,
+                Name = "BridgeRoll", Description = "Brücke und Rolle aus dem Mount (Upa)",
                 Contexts = Context.GroundMount,
                 Duration = 0.8f, Accuracy = 0.6f, Balance = 1.3f, MassScaling = 0.45f,
                 Exposure = 0.2f, StaminaCost = 0.12f, RemovesMount = true
             });
             t.Add(new Technique
             {
-                Name = "HipEscape", Styles = StyleMask.BJJ,
+                Name = "HipEscape", Description = "Hüftflucht (Shrimp)",
                 Contexts = Context.GroundMount | Context.GroundFree,
                 Duration = 0.7f, GripBreak = 0.35f, StrengthScaling = 0.4f, Push = 0.5f, MassScaling = 0.3f,
                 StaminaCost = 0.1f
             });
             t.Add(new Technique
             {
-                Name = "StandUp", Styles = StyleMask.All, Contexts = Context.GroundFree,
+                Name = "StandUp", Description = "Technisch aufstehen", Contexts = Context.GroundFree,
                 Duration = 0.8f, Exposure = 0.3f, StaminaCost = 0.08f, IsStandUp = true
             });
 
             // ---- Deckung ----
             t.Add(new Technique
             {
-                Name = "Guard", Styles = StyleMask.All, Contexts = Context.All,
+                Name = "Guard", Description = "Deckung, Kopf schützen", Contexts = Context.All,
                 Duration = 0.5f, StaminaCost = 0.01f, IsGuard = true
             });
 
-            foreach (var tech in t) tech.Styles |= StyleMask.Mixed;
+            AssignStyles(t);
             return t;
         }
 
-        public static bool StyleAllows(Technique t, Style s) => (t.Styles & (StyleMask)(1 << (int)s)) != 0;
+        static void AssignStyles(List<Technique> list)
+        {
+            var byName = new Dictionary<string, Technique>();
+            foreach (var tech in list) byName[tech.Name] = tech;
+
+            for (int s = 0; s < EnumCounts.Styles; s++)
+                foreach (var name in Universal) byName[name].Styles |= 1 << s;
+
+            foreach (var kv in StyleTable)
+                foreach (var name in kv.Value)
+                {
+                    if (!byName.TryGetValue(name, out var tech))
+                        throw new ArgumentException($"StyleTable: unbekannte Technik '{name}' bei {kv.Key}");
+                    tech.Styles |= 1 << (int)kv.Key;
+                }
+
+            foreach (var tech in list) tech.Styles |= 1 << (int)Style.Mixed;
+        }
+
+        public static bool StyleAllows(Technique t, Style s) => (t.Styles & (1 << (int)s)) != 0;
 
         public static int IndexOf(string name)
         {

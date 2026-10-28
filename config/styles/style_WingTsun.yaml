@@ -20,14 +20,15 @@ behaviors:
       extrinsic:
         gamma: 0.99
         strength: 1.0
-    max_steps: 2000000
+    max_steps: 6000000
     time_horizon: 128
     summary_freq: 20000
     checkpoint_interval: 500000
     keep_checkpoints: 5
 
 environment_parameters:
-  style: 6          # WingTsun
+  style: 12          # WingTsun
+                     #   7=JuJutsu 8=Judo 9=Wrestling 10=Aikido 11=KravMaga 12=WingTsun 13=MMA 14=Mixed (alle Techniken)
   scenario: -1       # -1 = zufällig, sonst 0=WristGrab 1=PinnedToWall 2=BearHugBehind 3=ChokeFront 4=GroundMount 5=CorneredStrikes
   mass_ratio: -1     # -1 = zufällig zwischen 1.0 und mass_ratio_max
   mass_ratio_max: 1.8

@@ -1,7 +1,7 @@
 // Schneller Plausibilitäts-Check des Kampfmodells OHNE Unity (läuft mit Mono/.NET).
 //   mcs -out:simcheck.exe tools/SimCheck.cs Assets/SelfDefenseRL/Scripts/Enums.cs \
 //       Assets/SelfDefenseRL/Scripts/TechniqueLibrary.cs Assets/SelfDefenseRL/Scripts/CombatSimulation.cs
-//   mono simcheck.exe [massRatio] [random|flee] [baseline.csv]
+//   mono simcheck.exe [massRatio] [random|flee] [baseline.csv|-] [massScalingFloor]
 //   Mit CSV-Pfad: schreibt Baseline-Episoden (alle Grössen 1.0–1.8) im selben Format wie Unity → analysis/analyze_episodes.py
 // Gibt die Erfolgsrate einer einfachen Politik pro Szenario x Stil aus:
 //   random = zufällige erlaubte Technik
@@ -16,16 +16,18 @@ public static class SimCheck
     {
         float mass = args.Length > 0 ? float.Parse(args[0], System.Globalization.CultureInfo.InvariantCulture) : 1.5f;
         float strength = (float)Math.Pow(mass, 1.3) * 1.1f;
-        int episodes = 2000;
-        if (args.Length > 2) { WriteCsv(args[2], args.Length > 1 && args[1] == "flee"); return; }
+        int episodes = 1000;
+        float floor = args.Length > 3 ? float.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture) : 0f;
+        if (args.Length > 2 && args[2] != "-") { WriteCsv(args[2], args.Length > 1 && args[1] == "flee", floor); return; }
         bool flee = args.Length > 1 && args[1] == "flee";
         var rng = new Random(1);
         var sim = new CombatSimulation(42);
+        sim.S.MassScalingFloor = floor; sim.S.StrengthScalingFloor = floor;
         const float dt = 0.02f;
 
         Console.WriteLine($"Politik={(flee ? "flee" : "random")}, massRatio={mass:0.00}, strengthRatio={strength:0.00}, {episodes} Episoden je Zelle\n");
         Console.Write("{0,-16}", "Szenario");
-        for (int st = 0; st < EnumCounts.Styles; st++) Console.Write("{0,10}", ((Style)st).ToString());
+        for (int st = 0; st < EnumCounts.Styles; st++) Console.Write("{0,11}", ((Style)st).ToString());
         Console.WriteLine();
 
         for (int sc = 0; sc < EnumCounts.Scenarios; sc++)
@@ -53,7 +55,7 @@ public static class SimCheck
                     }
                     if (sim.Success) wins++;
                 }
-                Console.Write("{0,9:0}%", 100.0 * wins / episodes);
+                Console.Write("{0,10:0}%", 100.0 * wins / episodes);
             }
             Console.WriteLine();
         }
@@ -72,13 +74,14 @@ public static class SimCheck
         return choice;
     }
 
-    static void WriteCsv(string path, bool flee)
+    static void WriteCsv(string path, bool flee, float floor)
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
         var rng = new Random(7); var sim = new CombatSimulation(11);
+        sim.S.MassScalingFloor = floor; sim.S.StrengthScalingFloor = floor;
         var sb = new System.Text.StringBuilder();
         sb.Append("scenario,style,mass_ratio,strength_ratio,success,end_reason,time,health_left,attacker_damage,damage_taken,times_grabbed,takedowns,time_pinned_wall,first_release_time,decisive_technique");
-        foreach (var pre in new[] { "uses_", "hits_", "releases_", "knockdowns_" })
+        foreach (var pre in new[] { "uses_", "hits_", "releases_", "knockdowns_", "wallturns_" })
             for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(pre).Append(TechniqueLibrary.All[i].Name);
         sb.Append('\n');
         float[] masses = { 1.0f, 1.2f, 1.4f, 1.6f, 1.8f };
@@ -103,7 +106,7 @@ public static class SimCheck
                           .Append(sim.TimesGrabbed).Append(',').Append(sim.Takedowns).Append(',')
                           .Append(sim.TimePinnedToWall.ToString("0.##", inv)).Append(',').Append(sim.FirstReleaseTime.ToString("0.##", inv)).Append(',')
                           .Append(sim.Success ? TechniqueLibrary.All[sim.DecisiveTechnique].Name : "");
-                        foreach (var arr in new[] { sim.TechniqueUses, sim.TechniqueHits, sim.TechniqueReleases, sim.TechniqueKnockdowns })
+                        foreach (var arr in new[] { sim.TechniqueUses, sim.TechniqueHits, sim.TechniqueReleases, sim.TechniqueKnockdowns, sim.TechniqueWallTurns })
                             for (int i = 1; i < TechniqueLibrary.Count; i++) sb.Append(',').Append(arr[i]);
                         sb.Append('\n');
                     }

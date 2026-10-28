@@ -25,7 +25,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-STYLE_ORDER = ["Untrained", "Boxing", "MuayThai", "BJJ", "Judo", "KravMaga", "WingTsun", "Mixed"]
+STYLE_ORDER = ["Untrained", "Boxing", "Kickboxing", "MuayThai", "Karate", "Taekwondo", "BJJ", "JuJutsu",
+               "Judo", "Wrestling", "Aikido", "KravMaga", "WingTsun", "MMA", "Mixed"]
 SCENARIO_ORDER = ["WristGrab", "PinnedToWall", "BearHugBehind", "ChokeFront", "GroundMount", "CorneredStrikes"]
 SCENARIO_DE = {
     "WristGrab": "Handgelenk gepackt", "PinnedToWall": "An die Wand gedrückt",

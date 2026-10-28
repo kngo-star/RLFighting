@@ -8,7 +8,8 @@ Szenarien und Grössenverhältnissen. Nur der erlaubte Technik-Satz unterscheide
 """
 from pathlib import Path
 
-STYLES = ["Untrained", "Boxing", "MuayThai", "BJJ", "Judo", "KravMaga", "WingTsun", "Mixed"]
+STYLES = ["Untrained", "Boxing", "Kickboxing", "MuayThai", "Karate", "Taekwondo", "BJJ", "JuJutsu",
+          "Judo", "Wrestling", "Aikido", "KravMaga", "WingTsun", "MMA", "Mixed"]
 
 ROOT = Path(__file__).resolve().parent.parent
 base = (ROOT / "config" / "selfdefense_ppo.yaml").read_text(encoding="utf-8")

@@ -31,6 +31,7 @@ namespace SelfDefenseRL
         readonly long[] releases = new long[TechniqueLibrary.Count];
         readonly long[] knockdowns = new long[TechniqueLibrary.Count];
         readonly long[] decisive = new long[TechniqueLibrary.Count];
+        readonly long[] wallTurns = new long[TechniqueLibrary.Count];
         float sumEscapeTime, sumPinned;
 
         int tab;
@@ -67,6 +68,7 @@ namespace SelfDefenseRL
                 hits[i] += s.TechniqueHits[i];
                 releases[i] += s.TechniqueReleases[i];
                 knockdowns[i] += s.TechniqueKnockdowns[i];
+                wallTurns[i] += s.TechniqueWallTurns[i];
             }
             if (s.Success) { decisive[s.DecisiveTechnique]++; sumEscapeTime += s.Time; }
             sumPinned += s.TimePinnedToWall;
@@ -116,9 +118,10 @@ namespace SelfDefenseRL
             if (total.wins > 0) sb.AppendLine($"Ø Zeit bis zur Flucht: {sumEscapeTime / total.wins:0.0} s");
             if (total.n > 0) sb.AppendLine($"Ø Zeit an der Wand fixiert: {sumPinned / total.n:0.0} s");
             sb.AppendLine();
-            sb.AppendLine("<b>Pro Stil</b>");
+            sb.AppendLine("<b>Rangliste der Kampfstile (Erfolgsrate)</b>");
+            int rank = 1;
             foreach (int i in Enumerable.Range(0, EnumCounts.Styles).OrderByDescending(i => byStyle[i].Rate))
-                if (byStyle[i].n > 0) sb.AppendLine($"  {((Style)i),-10} {Bar(byStyle[i].Rate)} {byStyle[i].Rate,4:P0}  (n={byStyle[i].n})");
+                if (byStyle[i].n > 0) sb.AppendLine($"{rank++,2}. {((Style)i),-11} {Bar(byStyle[i].Rate)} {byStyle[i].Rate,4:P0}  (n={byStyle[i].n})");
             sb.AppendLine();
             sb.AppendLine("<b>Pro Szenario</b>");
             for (int i = 0; i < EnumCounts.Scenarios; i++)
@@ -134,14 +137,14 @@ namespace SelfDefenseRL
         {
             var sb = new StringBuilder();
             sb.AppendLine("<b>Erfolgsrate: Zeilen = Stil, Spalten = Szenario</b>");
-            sb.Append($"{"",-10}");
+            sb.Append($"{"",-11}");
             string[] shortNames = { "Hand", "Wand", "Hinten", "Würgen", "Boden", "Ecke" };
             foreach (var n in shortNames) sb.Append($"{n,8}");
             sb.AppendLine();
             for (int s = 0; s < EnumCounts.Styles; s++)
             {
                 if (byStyle[s].n == 0) continue;
-                sb.Append($"{((Style)s),-10}");
+                sb.Append($"{((Style)s),-11}");
                 for (int c = 0; c < EnumCounts.Scenarios; c++)
                 {
                     var k = byStyleScenario[s, c];
@@ -159,19 +162,20 @@ namespace SelfDefenseRL
         {
             var sb = new StringBuilder();
             long decTotal = decisive.Sum();
-            sb.AppendLine("<b>Technik          benutzt  Treffer  löst Griff  wirft um  entscheidend</b>");
+            sb.AppendLine("<b>Technik          benutzt  Treffer  löst Griff  wirft um  dreht  entscheidend</b>");
             foreach (int i in Enumerable.Range(1, TechniqueLibrary.Count - 1).OrderByDescending(i => decisive[i]).ThenByDescending(i => uses[i]))
             {
                 if (uses[i] == 0) continue;
                 float hitRate = (float)hits[i] / uses[i];
                 float relRate = (float)releases[i] / uses[i];
                 float decRate = decTotal == 0 ? 0f : (float)decisive[i] / decTotal;
-                sb.AppendLine($"{TechniqueLibrary.All[i].Name,-16}{uses[i],8}{hitRate,9:P0}{relRate,12:P0}{knockdowns[i],10}{decRate,13:P0}");
+                sb.AppendLine($"{TechniqueLibrary.All[i].Name,-16}{uses[i],8}{hitRate,9:P0}{relRate,12:P0}{knockdowns[i],10}{wallTurns[i],7}{decRate,13:P0}");
             }
             if (decTotal > 0 && decisive[0] > 0)
-                sb.AppendLine($"{"(nur Bewegung)",-16}{"",8}{"",9}{"",12}{"",10}{(float)decisive[0] / decTotal,13:P0}");
+                sb.AppendLine($"{"(nur Bewegung)",-16}{"",8}{"",9}{"",12}{"",10}{"",7}{(float)decisive[0] / decTotal,13:P0}");
             sb.AppendLine();
             sb.AppendLine("löst Griff = Anteil der Einsätze, die einen Griff gelöst haben");
+            sb.AppendLine("dreht = wie oft sie die Position an der Wand umgedreht hat (Underhook)");
             sb.AppendLine("entscheidend = Anteil der erfolgreichen Fluchten, bei denen diese Technik");
             sb.AppendLine("               die letzte wirksame Aktion war (Griff gelöst, umgeworfen, benommen)");
             return sb.ToString();
@@ -192,7 +196,7 @@ namespace SelfDefenseRL
             foreach (var c in byStyleScenario) c.n = c.wins = 0;
             System.Array.Clear(uses, 0, uses.Length); System.Array.Clear(hits, 0, hits.Length);
             System.Array.Clear(releases, 0, releases.Length); System.Array.Clear(knockdowns, 0, knockdowns.Length);
-            System.Array.Clear(decisive, 0, decisive.Length);
+            System.Array.Clear(decisive, 0, decisive.Length); System.Array.Clear(wallTurns, 0, wallTurns.Length);
             sumEscapeTime = sumPinned = 0f;
         }
 

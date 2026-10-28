@@ -32,31 +32,63 @@ eigenen Kraft“* (z. B. Ziele mit hoher Verletzlichkeit, Hebel). Werte nahe 1 b
 Diese beiden Zahlen pro Technik bestimmen weitgehend, welche Stile bei grossem Gegner gewinnen.
 → **Unbedingt im Bericht diskutieren und variieren.**
 
-## 3. Techniken (`TechniqueLibrary.cs`)
+## 3. Techniken und Kampfstile (`TechniqueLibrary.cs`)
 
-| Technik | Stile | MassScaling | StrengthScaling | Wirkung |
+Jeder Stil = eine Teilmenge der Techniken (Action Masking). Die Zuordnung steht zentral in `TechniqueLibrary.StyleTable`
+und lässt sich dort leicht ändern. Diese Tabellen werden aus dem Code erzeugt.
+
+| Technik | Beschreibung | MassScaling | StrengthScaling | Wirkung |
 |---|---|---|---|---|
-| PalmStrike | Krav, WingTsun | 0.8 | – | Schaden 0.12 |
-| JabCross | Boxing, MuayThai, Krav | 0.9 | – | Schaden 0.10 |
-| HammerFist | Untrained, Krav | 0.7 | – | Schaden 0.08, auch von unten |
-| Elbow | Krav, MuayThai, WingTsun | 0.7 | 0.5 | Schaden 0.15 |
-| KneeGroin | Krav, MuayThai | 0.15 | 0.3 | Schaden 0.30, starke Benommenheit |
-| FaceStrike | Krav, WingTsun | 0.0 | 0.2 | Schaden 0.25, geringe Trefferquote |
-| KickKnee | Krav, WingTsun, MuayThai | 0.4 | – | Schaden + Gleichgewicht |
-| RoundKickThigh | MuayThai | 0.7 | – | nur auf Distanz |
-| GripReleaseThumb | Krav, BJJ, Judo, WingTsun | – | 0.3 | Griff lösen 55 % Basis |
-| ChokeDefense | Krav, BJJ, Judo | – | 0.5 | Würgegriff lösen |
-| DropWeight | BJJ, Judo, Krav | – | 0.35 | Umklammerung lösen |
-| Frame | BJJ, MuayThai, Judo | 0.5 | 0.6 | Abstand + Griff lösen |
-| PushOff | alle | 0.8 | 0.8 | Abstand, reine Kraft |
-| HipThrow | Judo, BJJ | 0.5 | – | Gleichgewicht 1.2 → Wurf |
-| BridgeRoll | BJJ, Judo | 0.45 | – | löst Mount bei Erfolg |
-| HipEscape | BJJ | 0.3 | 0.4 | Abstand am Boden |
-| StandUp | alle | – | – | vom Boden aufstehen |
-| Guard | alle | – | – | Schaden ×0.4, Trefferchance −25 % |
+| PalmStrike | Handballenstoss ins Gesicht | 0.8 | – | Schaden 0.12, Abstand 0.2 m |
+| JabCross | Gerade Schläge (Jab, Cross) | 0.9 | – | Schaden 0.10 |
+| ReversePunch | Karate-Fauststoss (Gyaku-Zuki) mit Hüfteinsatz | 0.85 | – | Schaden 0.12 |
+| HammerFist | Hammerfaust, auch von unten | 0.7 | – | Schaden 0.08 |
+| Elbow | Ellbogenschlag (auch nach hinten) | 0.7 | 0.5 | Schaden 0.15, Griff lösen 5% |
+| KneeGroin | Kniestoss (Leiste/Körper) | 0.15 | 0.3 | Schaden 0.30, Griff lösen 10% |
+| FaceStrike | Angriff auf Augen/Nase | 0.0 | 0.2 | Schaden 0.25, Griff lösen 15% |
+| KickKnee | Tritt gegen Knie/Schienbein, Fussstampfer | 0.4 | – | Schaden 0.15, Gleichgewicht 0.2 |
+| FrontKick | Frontaltritt / Teep (stösst weg) | 0.6 | – | Schaden 0.10, Abstand 0.9 m |
+| SideKick | Seitwärtstritt (Yop Chagi / Yoko-Geri) | 0.6 | – | Schaden 0.14, Gleichgewicht 0.2, Abstand 1.1 m |
+| RoundKickThigh | Halbkreistritt auf den Oberschenkel (Low Kick) | 0.7 | – | Schaden 0.15, Gleichgewicht 0.15 |
+| GripReleaseThumb | Griff am Daumen lösen | – | 0.3 | Griff lösen 55% |
+| WristLock | Handgelenkhebel mit Wurf (Kote-Gaeshi) | 0.3 | 0.2 | Griff lösen 50%, Gleichgewicht 0.35 |
+| ChokeDefense | Würgegriff aufreissen und wegdrehen | – | 0.5 | Griff lösen 45% |
+| DropWeight | Gewicht senken, Hüfte raus | 0.0 | 0.35 | Griff lösen 35%, Gleichgewicht 0.1 |
+| Underhook | Unterhaken und von der Wand wegdrehen | – | 0.5 | Griff lösen 15%, dreht von der Wand weg |
+| Frame | Unterarm-Rahmen gegen Hals/Schulter | 0.5 | 0.6 | Griff lösen 20%, Abstand 0.6 m |
+| PushOff | Wegstossen (ohne Training) | 0.8 | 0.8 | Griff lösen 25%, Abstand 1.2 m |
+| HipThrow | Hüftwurf (O-Goshi) | 0.5 | – | Gleichgewicht 1.2 |
+| BridgeRoll | Brücke und Rolle aus dem Mount (Upa) | 0.45 | – | Gleichgewicht 1.3, löst Mount |
+| HipEscape | Hüftflucht (Shrimp) | 0.3 | 0.4 | Griff lösen 35%, Abstand 0.5 m |
+| StandUp | Technisch aufstehen | – | – | aufstehen |
+| Guard | Deckung, Kopf schützen | – | – | Schaden ×0.4 |
 
 Jede Technik hat ausserdem Dauer, Trefferquote, Ausdauerkosten und **Exposure**
-(wie viel leichter man während der Ausführung getroffen wird). `Mixed` darf alles.
+(wie viel leichter man während der Ausführung getroffen wird).
+
+| Stil | Techniken (zusätzlich zu None, Guard, PushOff, StandUp) |
+|---|---|
+| Untrained | HammerFist |
+| Boxing | JabCross, Frame |
+| Kickboxing | JabCross, KneeGroin, KickKnee, FrontKick, RoundKickThigh |
+| MuayThai | JabCross, Elbow, KneeGroin, FrontKick, RoundKickThigh, Underhook, Frame |
+| Karate | PalmStrike, ReversePunch, HammerFist, Elbow, KickKnee, FrontKick, SideKick |
+| Taekwondo | ReversePunch, KickKnee, FrontKick, SideKick, RoundKickThigh |
+| BJJ | GripReleaseThumb, ChokeDefense, DropWeight, Underhook, Frame, HipThrow, BridgeRoll, HipEscape |
+| JuJutsu | PalmStrike, Elbow, KneeGroin, KickKnee, GripReleaseThumb, WristLock, ChokeDefense, DropWeight, HipThrow, BridgeRoll |
+| Judo | GripReleaseThumb, ChokeDefense, DropWeight, Underhook, Frame, HipThrow, BridgeRoll |
+| Wrestling | GripReleaseThumb, DropWeight, Underhook, Frame, HipThrow, BridgeRoll, HipEscape |
+| Aikido | GripReleaseThumb, WristLock, HipThrow |
+| KravMaga | PalmStrike, JabCross, HammerFist, Elbow, KneeGroin, FaceStrike, KickKnee, FrontKick, GripReleaseThumb, ChokeDefense, DropWeight |
+| WingTsun | PalmStrike, JabCross, Elbow, FaceStrike, KickKnee, GripReleaseThumb |
+| MMA | JabCross, Elbow, KickKnee, FrontKick, RoundKickThigh, GripReleaseThumb, ChokeDefense, DropWeight, Underhook, Frame, HipThrow, BridgeRoll, HipEscape |
+| Mixed | alle |
+
+Bewusste Entscheidungen, die im Bericht diskutiert werden sollten:
+- **MMA** ohne Leisten- und Augenangriffe (Sport-Regelwerk). Selbstverteidigungs-Systeme (Krav Maga, Wing Tsun, Ju-Jutsu) haben sie.
+- **Aikido** nur mit Hebeln und Würfen, **Boxen** nur mit Schlägen und Rahmen.
+- **Mixed** = alle Techniken. Das ist die Obergrenze: so gut kann ein Agent mit *allem* werden.
+- „Untrained“ ist die Baseline: Deckung, Wegstossen, Hammerfaust, Aufstehen.
 
 ## 4. Angreifer (Skript, `CombatSimulation.UpdateAttacker`)
 
@@ -94,6 +126,7 @@ ein Vergleich: Training **mit** und **ohne** Shaping.
   rückwärts, bis sie mit dem Rücken an der Wand steht. Gemessen wird `time_pinned_wall` (Sekunden an der Wand fixiert).
 - Der Angreifer bleibt auf der Seite, von der er gegriffen hat. Passt er nicht mehr zwischen Verteidigerin und Wand,
   werden beide verschoben.
+- **Underhook** (Unterhaken) kann im Clinch/Würgen die Position drehen: danach steht der Angreifer an der Wand und hält nur noch den Arm.
 - Darstellung: Verteidigerin 92 % der Standardgrösse, Angreifer Höhe `massRatio^0.25`, Breite `massRatio^0.6`.
 
 ## 7. Kennzahlen für die Auswertung
@@ -107,25 +140,22 @@ ein Vergleich: Training **mit** und **ohne** Shaping.
 | Erfolg mit / ohne | Erfolgsrate der Episoden, in denen die Technik (nicht) benutzt wurde (Korrelation, keine Ursache!) |
 | time_pinned_wall, times_grabbed, takedowns, damage_taken | wie die Episode verlaufen ist |
 
-## 8. Plausibilitätscheck (ohne RL)
+## 8. Plausibilitätscheck und Sensitivität (ohne RL)
 
 `tools/SimCheck.cs`, Politik *flee* (zufällige erlaubte Technik solange festgehalten, sonst sofort weglaufen),
-2000 Episoden pro Zelle, `massRatio = 1.5`:
+1000 Episoden pro Zelle, alle Grössen 1.0–1.8. Rangliste der Stile (Erfolgsrate über alle Szenarien):
 
-| Szenario | Untrained | Boxing | MuayThai | BJJ | Judo | KravMaga | WingTsun | Mixed |
-|---|---|---|---|---|---|---|---|---|
-| WristGrab | 28 % | 28 % | 85 % | 48 % | 53 % | 93 % | 93 % | 80 % |
-| PinnedToWall | 1 % | 3 % | 63 % | 15 % | 16 % | 86 % | 87 % | 61 % |
-| BearHugBehind | 6 % | 0 % | 65 % | 58 % | 76 % | 84 % | 90 % | 67 % |
-| ChokeFront | 10 % | 6 % | 72 % | 24 % | 31 % | 88 % | 92 % | 73 % |
-| GroundMount | 0 % | 0 % | 31 % | 47 % | 73 % | 75 % | 81 % | 54 % |
-| CorneredStrikes | 7 % | 10 % | 64 % | 13 % | 13 % | 82 % | 84 % | 63 % |
+| Annahme | Rangliste |
+|---|---|
+| Standard (`mass_scaling_floor = 0`) | WingTsun 88 %, KravMaga 86 %, JuJutsu 79 %, Mixed 65 %, MuayThai 63 %, Judo 55 %, MMA 49 %, Kickboxing 49 %, Karate 46 %, BJJ 45 %, Wrestling 45 %, Taekwondo 28 %, Boxing 20 %, Untrained 17 %, Aikido 15 % |
+| Keine Technik kraftunabhängig (`floor = 0.6`) | WingTsun 83 %, KravMaga 81 %, JuJutsu 74 %, MuayThai 61 %, Mixed 59 %, Judo 51 %, Kickboxing 47 %, MMA 46 %, Karate 45 %, Wrestling 43 %, BJJ 42 %, Taekwondo 26 %, Boxing 20 %, Untrained 17 %, Aikido 14 % |
 
 Beobachtungen:
-- Der Grössenunterschied wirkt stark, und seit die Wand fest ist, verlieren Grappling-Stile (BJJ, Judo) im Stand deutlich.
-- Krav Maga und Wing Tsun liegen vorne – **das folgt direkt aus der Annahme `MassScaling ≈ 0` für KneeGroin/FaceStrike**.
-  Genau das muss im Bericht kritisch diskutiert und per Sensitivitätsanalyse geprüft werden.
-- `Mixed` liegt bei zufälliger Wahl unter Krav, weil schlechte Techniken die guten verwässern. Ein RL-Agent sollte
-  mindestens so gut werden wie der beste Einzelstil.
-- Der RL-Agent muss deutlich über dieser Baseline liegen, sonst lernt er nichts Sinnvolles.
-- Baseline-CSV für die Auswertung: `mono simcheck.exe 1.5 flee baseline.csv` → `python analysis/analyze_episodes.py baseline.csv`
+- Die Rangfolge bleibt bei der Sensitivitätsanalyse stabil, die Werte sinken nur leicht. Treiber ist eher der
+  **StunFactor** (Knie, Augen → lange Benommenheit → Griff lockert sich) als das MassScaling. Das ist die nächste
+  Annahme, die variiert werden sollte.
+- **Achtung, Zufallspolitik:** Stile mit wenigen, aber starken Techniken (Wing Tsun) sind hier bevorzugt; Stile mit vielen
+  Techniken (MMA, Mixed) werden durch schlechte Zufallswahl verwässert. Erst der **trainierte RL-Agent** wählt gezielt,
+  deshalb ist erst *seine* Rangliste die eigentliche Antwort.
+- Stile ohne Bodentechniken (Boxen, Taekwondo, Karate, Kickboxen) haben im Szenario *Am Boden* fast 0 %.
+- Befehle: `mono simcheck.exe 1.5 flee` (Tabelle), `mono simcheck.exe 1.5 flee baseline.csv 0.6` (CSV mit Floor 0.6).
